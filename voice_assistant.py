@@ -1,6 +1,6 @@
 import speech_recognition as sr
 import pyttsx3
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Optional
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -21,25 +21,25 @@ import threading
 from pathlib import Path
 import psutil
 import requests
-from typing import Dict, List, Optional
-import wikipedia
+from typing import Dict, List
+import tempfile
+from openai import OpenAI
 
 load_dotenv()
 
-# IMPROVED: Enhanced recognizer with optimized parameters for better accuracy
-recognizer = sr.Recognizer()
-recognizer.energy_threshold = 300  # Lower threshold for better detection
-recognizer.dynamic_energy_threshold = True
-recognizer.dynamic_energy_adjustment_damping = 0.15
-recognizer.dynamic_energy_ratio = 1.5
-recognizer.pause_threshold = 1.0  # Increased for complete sentences
-recognizer.phrase_threshold = 0.3
-recognizer.non_speaking_duration = 0.5
+# Initialize OpenAI client for Whisper
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# IMPROVED: Google Assistant/Alexa-like TTS with gTTS
+# Enhanced recognizer
+recognizer = sr.Recognizer()
+recognizer.energy_threshold = 300
+recognizer.dynamic_energy_threshold = True
+recognizer.pause_threshold = 0.8
+
+# Text-to-speech setup
 tts_engine = None
 tts_lock = threading.Lock()
-USE_GTTS = True  # Use Google TTS for natural voice
+USE_GTTS = True
 
 try:
     from gtts import gTTS
@@ -47,80 +47,26 @@ try:
     import pygame
     pygame.mixer.init()
     USE_GTTS = True
-    print("✅ Google TTS (gTTS) loaded - Will use natural voice")
+    print("✅ Google TTS (gTTS) loaded")
 except ImportError:
     USE_GTTS = False
-    print("⚠️  gTTS not available, using pyttsx3. Install with: pip install gtts pygame")
-
-# NEW: Multilingual support configuration
-SUPPORTED_LANGUAGES = {
-    # Indian Regional Languages
-    "hindi": {"code": "hi", "name": "Hindi", "speech_code": "hi-IN"},
-    "bengali": {"code": "bn", "name": "Bengali", "speech_code": "bn-IN"},
-    "tamil": {"code": "ta", "name": "Tamil", "speech_code": "ta-IN"},
-    "telugu": {"code": "te", "name": "Telugu", "speech_code": "te-IN"},
-    "marathi": {"code": "mr", "name": "Marathi", "speech_code": "mr-IN"},
-    "gujarati": {"code": "gu", "name": "Gujarati", "speech_code": "gu-IN"},
-    "kannada": {"code": "kn", "name": "Kannada", "speech_code": "kn-IN"},
-    "malayalam": {"code": "ml", "name": "Malayalam", "speech_code": "ml-IN"},
-    "punjabi": {"code": "pa", "name": "Punjabi", "speech_code": "pa-IN"},
-    "odia": {"code": "or", "name": "Odia", "speech_code": "or-IN"},
-    
-    # Frequently Spoken World Languages
-    "spanish": {"code": "es", "name": "Spanish", "speech_code": "es-ES"},
-    "french": {"code": "fr", "name": "French", "speech_code": "fr-FR"},
-    "german": {"code": "de", "name": "German", "speech_code": "de-DE"},
-    "chinese": {"code": "zh-CN", "name": "Chinese", "speech_code": "zh-CN"},
-    "japanese": {"code": "ja", "name": "Japanese", "speech_code": "ja-JP"},
-    "korean": {"code": "ko", "name": "Korean", "speech_code": "ko-KR"},
-    "arabic": {"code": "ar", "name": "Arabic", "speech_code": "ar-SA"},
-    "russian": {"code": "ru", "name": "Russian", "speech_code": "ru-RU"},
-    "portuguese": {"code": "pt", "name": "Portuguese", "speech_code": "pt-PT"},
-    "italian": {"code": "it", "name": "Italian", "speech_code": "it-IT"},
-    "turkish": {"code": "tr", "name": "Turkish", "speech_code": "tr-TR"},
-    "dutch": {"code": "nl", "name": "Dutch", "speech_code": "nl-NL"},
-    "polish": {"code": "pl", "name": "Polish", "speech_code": "pl-PL"},
-    "thai": {"code": "th", "name": "Thai", "speech_code": "th-TH"},
-    "vietnamese": {"code": "vi", "name": "Vietnamese", "speech_code": "vi-VN"},
-    "indonesian": {"code": "id", "name": "Indonesian", "speech_code": "id-ID"},
-    "english": {"code": "en", "name": "English", "speech_code": "en-US"}
-}
-
-# NEW: Current language state
-current_language = {
-    "code": "en",
-    "name": "English",
-    "speech_code": "en-US"
-}
+    print("⚠️  gTTS not available, using pyttsx3")
 
 def init_tts_engine():
-    """Initialize TTS engine - Google Assistant style voice"""
+    """Initialize TTS engine"""
     global tts_engine
     
     if USE_GTTS:
-        # gTTS provides Google Assistant-like voice
-        print("✅ Using Google Text-to-Speech (Natural Voice)")
+        print("✅ Using Google Text-to-Speech")
         return True
     
-    # Fallback to pyttsx3
     try:
         tts_engine = pyttsx3.init()
         voices = tts_engine.getProperty('voices')
         
-        # Find natural, universal English voice (female preferred like Alexa/Google)
         best_voice = None
+        preferred_voices = ['zira', 'hazel', 'susan', 'samantha', 'female', 'david']
         
-        # Priority: Female voices sound more like Google Assistant/Alexa
-        preferred_voices = [
-            'zira',       # Microsoft Zira (US English Female) - Most Alexa-like
-            'hazel',      # Natural female voice
-            'susan',      # macOS female voice
-            'samantha',   # macOS female voice
-            'female',     # Any female voice
-            'david',      # Fallback male
-        ]
-        
-        # Find best voice
         for preferred in preferred_voices:
             for voice in voices:
                 voice_name = voice.name.lower()
@@ -134,40 +80,28 @@ def init_tts_engine():
             if best_voice:
                 break
         
-        # Fallback to first English voice
-        if not best_voice:
-            for voice in voices:
-                voice_name = voice.name.lower()
-                if 'english' in voice_name and 'female' in voice_name:
-                    best_voice = voice.id
-                    print(f"🎙️  Selected voice: {voice.name}")
-                    break
-        
         if not best_voice and voices:
             best_voice = voices[0].id
-            print(f"🎙️  Using default voice: {voices[0].name}")
         
         if best_voice:
             tts_engine.setProperty('voice', best_voice)
         
-        # Google Assistant/Alexa-like settings
-        tts_engine.setProperty('rate', 170)  # Slightly faster, more natural
+        tts_engine.setProperty('rate', 170)
         tts_engine.setProperty('volume', 0.95)
         
-        print(f"✅ TTS Engine initialized (pyttsx3 fallback)")
+        print(f"✅ TTS Engine initialized")
         return True
     except Exception as e:
         print(f"❌ TTS initialization error: {e}")
         return False
 
-# Initialize TTS at startup
 init_tts_engine()
 
-# Advanced reminder system
+# Reminder system
 reminders = []
 reminder_lock = threading.Lock()
 
-# Conversation context for better understanding
+# Conversation context
 conversation_context = {
     "last_search": None,
     "last_location": None,
@@ -183,90 +117,26 @@ class ConversationState(TypedDict):
     response_to_speak: str
     context: dict
 
-# NEW: Language detection and switching function
-def detect_language_switch(text: str) -> Optional[dict]:
-    """Detect if user wants to switch language"""
-    text_lower = text.lower().strip()
-    
-    # Check for language switch patterns
-    switch_patterns = [
-        r'switch (?:to )?(\w+)',
-        r'change (?:to )?(\w+)',
-        r'speak (?:in )?(\w+)',
-        r'talk (?:in )?(\w+)',
-        r'use (\w+)',
-        r'(\w+) (?:language|mode)'
-    ]
-    
-    for pattern in switch_patterns:
-        match = re.search(pattern, text_lower)
-        if match:
-            lang_name = match.group(1).strip()
-            if lang_name in SUPPORTED_LANGUAGES:
-                return SUPPORTED_LANGUAGES[lang_name]
-    
-    return None
-
-# NEW: Get language-specific greeting
-def get_smart_greeting_multilingual(lang_code: str = "en") -> str:
-    """Intelligent greeting based on time and language"""
+def get_smart_greeting():
+    """Simple time-based greeting"""
     indian_tz = pytz.timezone('Asia/Kolkata')
     current_time = datetime.now(indian_tz)
     hour = current_time.hour
     day = current_time.strftime("%A")
     time_str = current_time.strftime("%I:%M %p")
     
-    # Language-specific greetings
-    greetings = {
-        "en": {
-            "morning": f"Good morning! It's {time_str} on {day}. Hope you had a great sleep! How can I help you?",
-            "afternoon": f"Good afternoon! It's {time_str} on {day}. Hope your day is going well! How can I help you?",
-            "evening": f"Good evening! It's {time_str} on {day}. How was your day? How can I help you?",
-            "night": f"Good night! It's {time_str} on {day}. Working late? How can I help you?"
-        },
-        "hi": {
-            "morning": f"सुप्रभात! अभी {time_str} बजे हैं {day} को। आपकी नींद अच्छी रही होगी! मैं आपकी कैसे मदद कर सकता हूं?",
-            "afternoon": f"नमस्ते! अभी {time_str} बजे हैं {day} को। आपका दिन अच्छा जा रहा होगा! मैं आपकी कैसे मदद कर सकता हूं?",
-            "evening": f"शुभ संध्या! अभी {time_str} बजे हैं {day} को। आपका दिन कैसा रहा? मैं आपकी कैसे मदद कर सकता हूं?",
-            "night": f"शुभ रात्रि! अभी {time_str} बजे हैं {day} को। देर तक काम कर रहे हैं? मैं आपकी कैसे मदद कर सकता हूं?"
-        },
-        "es": {
-            "morning": f"¡Buenos días! Son las {time_str} del {day}. ¡Espero que hayas dormido bien! ¿Cómo puedo ayudarte?",
-            "afternoon": f"¡Buenas tardes! Son las {time_str} del {day}. ¡Espero que tu día vaya bien! ¿Cómo puedo ayudarte?",
-            "evening": f"¡Buenas tardes! Son las {time_str} del {day}. ¿Cómo estuvo tu día? ¿Cómo puedo ayudarte?",
-            "night": f"¡Buenas noches! Son las {time_str} del {day}. ¿Trabajando hasta tarde? ¿Cómo puedo ayudarte?"
-        },
-        "fr": {
-            "morning": f"Bonjour! Il est {time_str} le {day}. J'espère que vous avez bien dormi! Comment puis-je vous aider?",
-            "afternoon": f"Bon après-midi! Il est {time_str} le {day}. J'espère que votre journée se passe bien! Comment puis-je vous aider?",
-            "evening": f"Bonsoir! Il est {time_str} le {day}. Comment s'est passée votre journée? Comment puis-je vous aider?",
-            "night": f"Bonne nuit! Il est {time_str} le {day}. Vous travaillez tard? Comment puis-je vous aider?"
-        }
-    }
-    
-    # Get time-based greeting
     if 5 <= hour < 12:
-        time_key = "morning"
+        return f"Good morning! It's {time_str} on {day}. How can I help you?"
     elif 12 <= hour < 17:
-        time_key = "afternoon"
+        return f"Good afternoon! It's {time_str} on {day}. How can I help you?"
     elif 17 <= hour < 21:
-        time_key = "evening"
+        return f"Good evening! It's {time_str} on {day}. How can I help you?"
     else:
-        time_key = "night"
-    
-    # Return greeting in current language or English fallback
-    if lang_code in greetings:
-        return greetings[lang_code][time_key]
-    else:
-        return greetings["en"][time_key]
-
-def get_smart_greeting():
-    """Intelligent greeting based on time and context"""
-    return get_smart_greeting_multilingual(current_language["code"])
+        return f"Good night! It's {time_str} on {day}. How can I help you?"
 
 def speak_text(text: str, priority: bool = False):
-    """IMPROVED: Enhanced text-to-speech with multilingual support"""
-    global tts_engine, tts_lock, USE_GTTS, current_language
+    """Enhanced text-to-speech"""
+    global tts_engine, tts_lock, USE_GTTS
     
     if not text or text.strip() == "":
         return
@@ -275,37 +145,28 @@ def speak_text(text: str, priority: bool = False):
     
     with tts_lock:
         try:
-            # Clean text for better speech
             text = text.replace("&", "and").replace("@", "at").replace("₹", "rupees")
-            text = re.sub(r'http\S+', 'link', text)  # Replace URLs
-            text = re.sub(r'\*+', '', text)  # Remove asterisks
-            text = text.replace("_", " ")  # Replace underscores
+            text = re.sub(r'http\S+', 'link', text)
+            text = re.sub(r'\*+', '', text)
+            text = text.replace("_", " ")
             
-            # NEW: Use gTTS with current language
             if USE_GTTS:
                 try:
-                    # Use gTTS for multilingual support
-                    tts = gTTS(text=text, lang=current_language["code"], slow=False)
-                    
-                    # Save to temporary buffer
+                    tts = gTTS(text=text, lang="en", slow=False)
                     fp = BytesIO()
                     tts.write_to_fp(fp)
                     fp.seek(0)
                     
-                    # Play using pygame
                     pygame.mixer.music.load(fp)
                     pygame.mixer.music.play()
                     
-                    # Wait for playback to finish
                     while pygame.mixer.music.get_busy():
                         time.sleep(0.1)
                     
                     return
                 except Exception as e:
-                    print(f"⚠️ gTTS error: {e}, falling back to pyttsx3")
+                    print(f"⚠️ gTTS error: {e}")
             
-            # Fallback to pyttsx3
-            # Ensure engine is initialized
             if tts_engine is None:
                 init_tts_engine()
             
@@ -315,25 +176,15 @@ def speak_text(text: str, priority: bool = False):
                 except:
                     pass
             
-            # Speak with error recovery
             tts_engine.say(text)
             tts_engine.runAndWait()
             
         except Exception as e:
             print(f"⚠️ Speech error: {e}")
-            # Try to reinitialize and retry
-            try:
-                time.sleep(0.3)
-                if init_tts_engine():
-                    tts_engine.say(text)
-                    tts_engine.runAndWait()
-            except Exception as e2:
-                print(f"❌ Could not speak response: {e2}")
 
 def get_weather(city: str = "Delhi") -> str:
     """Get weather information"""
     try:
-        # Using OpenWeatherMap API (you'll need to add API key in .env)
         api_key = os.getenv("OPENWEATHER_API_KEY")
         if api_key:
             url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -348,49 +199,33 @@ def get_weather(city: str = "Delhi") -> str:
                 
                 return f"Weather in {city}: {temp}°C, feels like {feels_like}°C. {description}. Humidity: {humidity}%"
         
-        # Fallback: Open weather website
         webbrowser.open(f"https://www.google.com/search?q=weather+in+{city}")
         return f"Opening weather information for {city}"
     except Exception as e:
-        print(f"Weather error: {e}")
         return f"Sorry, couldn't fetch weather. Opening web search."
 
 def get_news(topic: str = "latest") -> str:
     """Get latest news"""
     try:
-        news_sites = [
-            "https://news.google.com",
-            "https://www.bbc.com/news",
-            "https://timesofindia.indiatimes.com"
-        ]
-        
         if topic and topic != "latest":
             search_url = f"https://news.google.com/search?q={urllib.parse.quote(topic)}"
             webbrowser.open(search_url)
             return f"Opening latest news about {topic}"
         else:
-            webbrowser.open(news_sites[0])
+            webbrowser.open("https://news.google.com")
             return "Opening latest news for you"
     except Exception as e:
-        return f"Sorry, couldn't fetch news. Error: {str(e)}"
+        return f"Sorry, couldn't fetch news."
 
 def search_web(query: str) -> str:
-    """Enhanced web search with multiple engines"""
+    """Web search"""
     try:
-        # Try to get quick answer from Wikipedia first
-        try:
-            summary = wikipedia.summary(query, sentences=2)
-            return f"Here's what I found: {summary}. Would you like more details?"
-        except:
-            pass
-        
-        # Open web search
         search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
         webbrowser.open(search_url)
         conversation_context["last_search"] = query
         return f"Searching for: {query}"
     except Exception as e:
-        return f"Sorry, search failed. Error: {str(e)}"
+        return f"Sorry, search failed."
 
 def get_system_info() -> str:
     """Get system information"""
@@ -411,7 +246,7 @@ def get_system_info() -> str:
         return "Sorry, couldn't fetch system information"
 
 def open_application(app_name: str) -> str:
-    """Open desktop applications intelligently"""
+    """Open desktop applications"""
     system = platform.system()
     app_name = app_name.lower()
     
@@ -446,85 +281,10 @@ def open_application(app_name: str) -> str:
         else:
             return f"Sorry, I don't know how to open {app_name}"
     except Exception as e:
-        return f"Couldn't open {app_name}. Error: {str(e)}"
-
-def search_flights(origin: str, destination: str, date: Optional[str] = None) -> str:
-    """Enhanced flight search with multiple options"""
-    try:
-        sites = [
-            f"https://www.google.com/travel/flights?q=flights+from+{origin}+to+{destination}",
-            f"https://www.skyscanner.com/transport/flights/{origin}/{destination}",
-            f"https://www.makemytrip.com/flight/search?fromCity={origin}&toCity={destination}"
-        ]
-        
-        conversation_context["last_location"] = {"origin": origin, "destination": destination}
-        
-        for i, site in enumerate(sites[:2]):
-            webbrowser.open(site)
-            if i < len(sites) - 1:
-                time.sleep(1)
-        
-        return f"Searching flights from {origin} to {destination}. I've opened comparison sites for best deals."
-    except Exception as e:
-        return f"Flight search failed: {str(e)}"
-
-def search_trains(origin: str, destination: str, date: Optional[str] = None) -> str:
-    """Enhanced train search"""
-    try:
-        sites = [
-            "https://www.irctc.co.in/nget/train-search",
-            f"https://www.confirmtkt.com/trains/{origin}-to-{destination}",
-            f"https://www.railyatri.in/train-ticket/trains-from-{origin}-to-{destination}"
-        ]
-        
-        for i, site in enumerate(sites[:2]):
-            webbrowser.open(site)
-            if i < len(sites) - 1:
-                time.sleep(1)
-        
-        return f"Searching trains from {origin} to {destination}. Check the tabs for schedules and availability."
-    except Exception as e:
-        return f"Train search failed: {str(e)}"
-
-def search_cabs(origin: str, destination: str) -> str:
-    """Smart cab booking"""
-    try:
-        services = ["Uber", "Ola", "Rapido"]
-        sites = [
-            "https://www.uber.com",
-            "https://www.olacabs.com",
-            "https://www.rapido.bike"
-        ]
-        
-        for i, site in enumerate(sites):
-            webbrowser.open(site)
-            if i < len(sites) - 1:
-                time.sleep(0.5)
-        
-        return f"I've opened {', '.join(services)} for you. Compare prices and book the best option!"
-    except Exception as e:
-        return f"Cab search failed: {str(e)}"
-
-def search_buses(origin: str, destination: str, date: Optional[str] = None) -> str:
-    """Enhanced bus search"""
-    try:
-        sites = [
-            f"https://www.redbus.in/bus-tickets/{origin.lower()}-to-{destination.lower()}",
-            f"https://www.abhibus.com/{origin}-to-{destination}",
-            f"https://www.makemytrip.com/bus-tickets/{origin}-to-{destination}"
-        ]
-        
-        for i, site in enumerate(sites[:2]):
-            webbrowser.open(site)
-            if i < len(sites) - 1:
-                time.sleep(1)
-        
-        return f"Searching buses from {origin} to {destination}. Check both tabs for best prices."
-    except Exception as e:
-        return f"Bus search failed: {str(e)}"
+        return f"Couldn't open {app_name}"
 
 def set_reminder(reminder_text: str, minutes_from_now: int) -> str:
-    """Enhanced reminder system"""
+    """Set a reminder"""
     global reminders
     
     reminder_time = datetime.now() + timedelta(minutes=minutes_from_now)
@@ -540,7 +300,7 @@ def set_reminder(reminder_text: str, minutes_from_now: int) -> str:
     threading.Thread(target=trigger_reminder, args=(reminder_data,), daemon=True).start()
     
     time_str = reminder_time.strftime('%I:%M %p')
-    return f"Reminder set for {time_str}: {reminder_text}. I'll alert you!"
+    return f"Reminder set for {time_str}: {reminder_text}"
 
 def trigger_reminder(reminder_data: dict):
     """Trigger reminder at specified time"""
@@ -555,7 +315,7 @@ def trigger_reminder(reminder_data: dict):
         speak_text(message, priority=True)
 
 def play_music(song_name: str, platform: str = "youtube") -> str:
-    """Enhanced music playback"""
+    """Play music"""
     try:
         if platform == "spotify":
             query = urllib.parse.quote(song_name)
@@ -568,36 +328,11 @@ def play_music(song_name: str, platform: str = "youtube") -> str:
             webbrowser.open(youtube_url)
             return f"Playing {song_name} on YouTube"
     except Exception as e:
-        return f"Music playback failed: {str(e)}"
+        return f"Music playback failed"
 
 def execute_command(text: str) -> Optional[str]:
-    """Enhanced command execution with better pattern matching"""
-    global current_language
-    
+    """Execute voice commands"""
     text_lower = text.lower().strip()
-    
-    # NEW: Check for language switch FIRST
-    lang_switch = detect_language_switch(text)
-    if lang_switch:
-        old_lang = current_language["name"]
-        current_language = lang_switch
-        print(f"🌍 Language switched to: {current_language['name']}")
-        
-        # Response in new language
-        responses = {
-            "en": f"Language switched to {current_language['name']}. I'll now speak in {current_language['name']}.",
-            "hi": f"भाषा बदल गई है। अब मैं {current_language['name']} में बात करूंगा।",
-            "es": f"Idioma cambiado a {current_language['name']}. Ahora hablaré en {current_language['name']}.",
-            "fr": f"Langue changée en {current_language['name']}. Je parlerai maintenant en {current_language['name']}.",
-            "de": f"Sprache gewechselt zu {current_language['name']}. Ich werde jetzt auf {current_language['name']} sprechen.",
-            "zh-CN": f"语言已切换到{current_language['name']}。我现在将使用{current_language['name']}。",
-            "ja": f"言語を{current_language['name']}に切り替えました。これから{current_language['name']}で話します。",
-            "ar": f"تم تبديل اللغة إلى {current_language['name']}. سأتحدث الآن باللغة {current_language['name']}.",
-            "ru": f"Язык переключен на {current_language['name']}. Теперь я буду говорить на {current_language['name']}."
-        }
-        
-        response = responses.get(current_language["code"], responses["en"])
-        return response
     
     # System commands
     if any(word in text_lower for word in ["system info", "system status", "battery", "cpu"]):
@@ -662,46 +397,6 @@ def execute_command(text: str) -> Optional[str]:
                 webbrowser.open(url)
                 return f"Opening {site.title()}"
     
-    # Flight search
-    if "flight" in text_lower or "flights" in text_lower:
-        match = re.search(r'from (.+?) to (.+?)(?:\s|$)', text_lower)
-        if match:
-            origin = match.group(1).strip()
-            destination = match.group(2).strip()
-            return search_flights(origin, destination)
-        else:
-            return "Please say: Find flights from [city] to [city]"
-    
-    # Train search
-    if "train" in text_lower:
-        match = re.search(r'from (.+?) to (.+?)(?:\s|$)', text_lower)
-        if match:
-            origin = match.group(1).strip()
-            destination = match.group(2).strip()
-            return search_trains(origin, destination)
-        else:
-            return "Please say: Find trains from [city] to [city]"
-    
-    # Cab search
-    if "cab" in text_lower or "taxi" in text_lower or "uber" in text_lower or "ola" in text_lower:
-        match = re.search(r'from (.+?) to (.+?)(?:\s|$)', text_lower)
-        if match:
-            origin = match.group(1).strip()
-            destination = match.group(2).strip()
-            return search_cabs(origin, destination)
-        else:
-            return search_cabs("current location", "destination")
-    
-    # Bus search
-    if "bus" in text_lower:
-        match = re.search(r'from (.+?) to (.+?)(?:\s|$)', text_lower)
-        if match:
-            origin = match.group(1).strip()
-            destination = match.group(2).strip()
-            return search_buses(origin, destination)
-        else:
-            return "Please say: Find buses from [city] to [city]"
-    
     # Music
     if "play" in text_lower and any(word in text_lower for word in ["song", "music", "track"]):
         query = text_lower.replace("play", "").replace("song", "").replace("music", "").replace("track", "").strip()
@@ -710,7 +405,6 @@ def execute_command(text: str) -> Optional[str]:
     
     # Reminders
     if "remind" in text_lower or "reminder" in text_lower:
-        # Extract time and message
         minutes_match = re.search(r'(\d+)\s*(?:minute|min)', text_lower)
         if minutes_match:
             minutes = int(minutes_match.group(1))
@@ -719,12 +413,10 @@ def execute_command(text: str) -> Optional[str]:
         else:
             return "Please specify time. Example: Remind me in 10 minutes to call John"
     
-    # No command matched
     return None
 
-
-def listen_for_speech() -> Optional[str]:
-    """Listen for user speech with improved error handling"""
+def listen_for_speech_whisper() -> Optional[str]:
+    """🚀 FIXED: Use OpenAI Whisper for speech recognition (FAST & RELIABLE)"""
     try:
         with sr.Microphone() as source:
             print("\n🎤 Listening... (Speak now)")
@@ -732,36 +424,54 @@ def listen_for_speech() -> Optional[str]:
             # Adjust for ambient noise
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
             
-            # Listen with timeout
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+            # Listen
+            audio = recognizer.listen(source, timeout=10, phrase_time_limit=15)
             
-            print("🔄 Processing speech...")
+            print("🔄 Processing with Whisper (fast)...")
             
-            # Use current language for recognition
-            speech_lang = current_language["speech_code"]
+            # Save audio to temporary WAV file
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
+                temp_audio.write(audio.get_wav_data())
+                temp_audio_path = temp_audio.name
             
-            # Try Google Speech Recognition with current language
             try:
-                text = recognizer.recognize_google(audio, language=speech_lang)
-                print(f"✅ You said: {text}")
-                return text
-            except sr.UnknownValueError:
-                print("❌ Could not understand audio")
-                speak_text("Sorry, I didn't catch that. Could you repeat?")
-                return None
-            except sr.RequestError as e:
-                print(f"❌ Speech recognition error: {e}")
-                speak_text("Sorry, speech recognition service is unavailable")
+                # Use OpenAI Whisper API for transcription
+                with open(temp_audio_path, "rb") as audio_file:
+                    transcript = openai_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="en"
+                    )
+                
+                text = transcript.text.strip()
+                
+                # Clean up temp file
+                os.unlink(temp_audio_path)
+                
+                if text:
+                    print(f"✅ You said: {text}")
+                    return text
+                else:
+                    print("❌ No speech detected")
+                    return None
+                    
+            except Exception as e:
+                # Clean up temp file on error
+                try:
+                    os.unlink(temp_audio_path)
+                except:
+                    pass
+                print(f"❌ Whisper error: {e}")
+                speak_text("Sorry, I couldn't process that.")
                 return None
                 
     except sr.WaitTimeoutError:
-        print("⏱️  No speech detected (timeout)")
+        print("⏱️  No speech detected")
         return None
     except Exception as e:
         print(f"❌ Microphone error: {e}")
-        speak_text("Sorry, I'm having trouble with the microphone")
+        speak_text("Microphone error occurred.")
         return None
-
 
 def process_input_node(state: ConversationState) -> ConversationState:
     """Process user input and determine action"""
@@ -778,48 +488,41 @@ def process_input_node(state: ConversationState) -> ConversationState:
     command_result = execute_command(user_input)
     if command_result:
         state["response_to_speak"] = command_result
-        state["skip_processing"] = True  # Skip LLM if command handled
+        state["skip_processing"] = True
         return state
     
     # Continue to LLM for conversational responses
     state["skip_processing"] = False
     return state
 
-
 def llm_node(state: ConversationState) -> ConversationState:
-    """LLM processing node with context awareness"""
+    """LLM processing node"""
     if state.get("skip_processing", False):
         return state
     
     try:
-        # Initialize LLM
         llm = ChatOpenAI(
             model="gpt-4o-mini",
             temperature=0.7,
-            streaming=False
+            streaming=False,
+            timeout=15
         )
         
-        # Build context-aware system message
-        system_prompt = f"""You are a helpful, friendly voice assistant similar to Google Assistant or Alexa.
-Current language: {current_language['name']}
+        system_prompt = f"""You are a helpful, friendly voice assistant.
 Current time: {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%I:%M %p')}
 
 Instructions:
 - Give concise, natural responses (1-3 sentences)
 - Be warm and conversational
-- Respond in {current_language['name']} if requested
 - For complex tasks, guide the user
-- If you don't know something, say so politely
 
 Context:
 - Last search: {conversation_context.get('last_search', 'None')}
-- Last location: {conversation_context.get('last_location', 'None')}
 """
         
-        # Prepare messages
         messages = [SystemMessage(content=system_prompt)]
         
-        # Add conversation history (last 5 messages)
+        # Add conversation history
         recent_messages = state["messages"][-10:] if len(state["messages"]) > 10 else state["messages"]
         messages.extend(recent_messages)
         
@@ -837,10 +540,9 @@ Context:
         
     except Exception as e:
         print(f"❌ LLM Error: {e}")
-        state["response_to_speak"] = "Sorry, I encountered an error processing that request."
+        state["response_to_speak"] = "Sorry, I encountered an error."
     
     return state
-
 
 def response_node(state: ConversationState) -> ConversationState:
     """Speak the response"""
@@ -850,11 +552,9 @@ def response_node(state: ConversationState) -> ConversationState:
     state["iteration_count"] = state.get("iteration_count", 0) + 1
     return state
 
-
 def should_continue(state: ConversationState) -> str:
     """Determine if conversation should continue"""
     return "continue" if state.get("should_continue", True) else "end"
-
 
 def create_conversation_graph():
     """Create the conversation workflow graph"""
@@ -882,16 +582,13 @@ def create_conversation_graph():
     memory = MemorySaver()
     return workflow.compile(checkpointer=memory)
 
-
 def main():
     """Main voice assistant loop"""
     print("\n" + "="*60)
-    print("🎙️  MULTILINGUAL VOICE ASSISTANT")
+    print("🎙️  VOICE ASSISTANT - WHISPER POWERED (FAST!)")
     print("="*60)
-    print(f"📍 Current Language: {current_language['name']}")
-    print("💡 Say 'switch to [language]' to change language")
-    print("💡 Supported: English, Hindi, Spanish, French, German, Chinese, Japanese, Arabic, and more")
     print("💡 Say 'exit' or 'quit' to stop")
+    print("⚡ Using OpenAI Whisper for speech recognition")
     print("="*60 + "\n")
     
     # Greet user
@@ -907,11 +604,11 @@ def main():
     # Main loop
     while True:
         try:
-            # Listen for user input
-            user_input = listen_for_speech()
+            # Listen for user input using Whisper
+            user_input = listen_for_speech_whisper()
             
             if user_input is None:
-                continue  # No speech detected, try again
+                continue
             
             # Process through graph
             initial_state: ConversationState = {
@@ -937,30 +634,28 @@ def main():
             speak_text("Goodbye! Have a great day!")
             break
         except Exception as e:
-            print(f"\n❌ Error in main loop: {e}")
-            speak_text("Sorry, I encountered an error. Let's try again.")
+            print(f"\n❌ Error: {e}")
+            speak_text("Sorry, I encountered an error.")
             time.sleep(1)
-
 
 # Entry point
 if __name__ == "__main__":
     try:
-        # Check microphone availability
+        # Check microphone
         print("🔍 Checking microphone...")
         with sr.Microphone() as source:
             print("✅ Microphone detected!")
         
+        # Check OpenAI API key
+        if not os.getenv("OPENAI_API_KEY"):
+            print("❌ ERROR: OPENAI_API_KEY not found!")
+            print("Set it with: export OPENAI_API_KEY='sk-...'")
+            exit(1)
+        else:
+            print("✅ OpenAI API key found")
+        
         # Start assistant
         main()
         
-    except OSError as e:
-        print(f"\n❌ MICROPHONE ERROR: {e}")
-        print("\n🔧 Troubleshooting:")
-        print("1. Check System Preferences → Security & Privacy → Microphone")
-        print("2. Grant Terminal/Python microphone access")
-        print("3. Ensure microphone is connected and working")
-        print("4. Try: brew install portaudio && pip install pyaudio")
     except Exception as e:
-        print(f"\n❌ STARTUP ERROR: {e}")
-        print("\n🔧 Try reinstalling dependencies:")
-        print("pip install -r requirements.txt")
+        print(f"\n❌ ERROR: {e}")
