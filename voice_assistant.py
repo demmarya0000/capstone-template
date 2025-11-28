@@ -101,6 +101,10 @@ init_tts_engine()
 reminders = []
 reminder_lock = threading.Lock()
 
+# Speech interrupt flag
+is_speaking = False
+stop_speaking = False
+
 # Conversation context
 conversation_context = {
     "last_search": None,
@@ -126,22 +130,25 @@ def get_smart_greeting():
     time_str = current_time.strftime("%I:%M %p")
     
     if 5 <= hour < 12:
-        return f"Good morning! It's {time_str} on {day}. How can I help you?"
+        return f"Good morning! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
     elif 12 <= hour < 17:
-        return f"Good afternoon! It's {time_str} on {day}. How can I help you?"
+        return f"Good afternoon! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
     elif 17 <= hour < 21:
-        return f"Good evening! It's {time_str} on {day}. How can I help you?"
+        return f"Good evening! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
     else:
-        return f"Good night! It's {time_str} on {day}. How can I help you?"
+        return f"Hello! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
 
 def speak_text(text: str, priority: bool = False):
-    """Enhanced text-to-speech"""
-    global tts_engine, tts_lock, USE_GTTS
+    """Enhanced text-to-speech with interrupt capability"""
+    global tts_engine, tts_lock, USE_GTTS, is_speaking, stop_speaking
     
     if not text or text.strip() == "":
         return
     
-    print(f"🔊 Assistant: {text}")
+    print(f"🔊 Siri: {text}")
+    
+    is_speaking = True
+    stop_speaking = False
     
     with tts_lock:
         try:
@@ -160,9 +167,15 @@ def speak_text(text: str, priority: bool = False):
                     pygame.mixer.music.load(fp)
                     pygame.mixer.music.play()
                     
+                    # Check for interruption while speaking
                     while pygame.mixer.music.get_busy():
+                        if stop_speaking:
+                            pygame.mixer.music.stop()
+                            print("⚠️ Speech interrupted")
+                            break
                         time.sleep(0.1)
                     
+                    is_speaking = False
                     return
                 except Exception as e:
                     print(f"⚠️ gTTS error: {e}")
@@ -170,17 +183,20 @@ def speak_text(text: str, priority: bool = False):
             if tts_engine is None:
                 init_tts_engine()
             
-            if priority:
+            if priority or stop_speaking:
                 try:
                     tts_engine.stop()
                 except:
                     pass
             
-            tts_engine.say(text)
-            tts_engine.runAndWait()
+            if not stop_speaking:
+                tts_engine.say(text)
+                tts_engine.runAndWait()
             
         except Exception as e:
             print(f"⚠️ Speech error: {e}")
+        finally:
+            is_speaking = False
 
 def get_weather(city: str = "Delhi") -> str:
     """Get weather information"""
@@ -473,6 +489,54 @@ def listen_for_speech_whisper() -> Optional[str]:
         speak_text("Microphone error occurred.")
         return None
 
+def listen_for_wake_word() -> bool:
+    """Listen for 'Hey Siri' wake word"""
+    try:
+        with sr.Microphone() as source:
+            # Lower energy threshold for wake word detection
+            recognizer.energy_threshold = 200
+            recognizer.adjust_for_ambient_noise(source, duration=0.3)
+            
+            # Listen for short phrase
+            audio = recognizer.listen(source, timeout=5, phrase_time_limit=3)
+            
+            # Use Whisper for transcription
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
+                temp_audio.write(audio.get_wav_data())
+                temp_audio_path = temp_audio.name
+            
+            try:
+                with open(temp_audio_path, "rb") as audio_file:
+                    transcript = openai_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="en"
+                    )
+                
+                text = transcript.text.strip().lower()
+                os.unlink(temp_audio_path)
+                
+                # Check for wake word variations
+                wake_words = ["hey siri", "siri", "hey serie", "a siri", "hey serious"]
+                for wake_word in wake_words:
+                    if wake_word in text:
+                        print(f"✨ Wake word detected: '{text}'")
+                        return True
+                
+                return False
+                    
+            except Exception as e:
+                try:
+                    os.unlink(temp_audio_path)
+                except:
+                    pass
+                return False
+                
+    except sr.WaitTimeoutError:
+        return False
+    except Exception as e:
+        return False
+
 def process_input_node(state: ConversationState) -> ConversationState:
     """Process user input and determine action"""
     user_input = state["user_input"].lower().strip()
@@ -583,10 +647,13 @@ def create_conversation_graph():
     return workflow.compile(checkpointer=memory)
 
 def main():
-    """Main voice assistant loop"""
+    """Main voice assistant loop with wake word detection"""
+    global stop_speaking, is_speaking
+    
     print("\n" + "="*60)
-    print("🎙️  VOICE ASSISTANT - WHISPER POWERED (FAST!)")
+    print("🎙️  SIRI - VOICE ASSISTANT (WAKE WORD ENABLED)")
     print("="*60)
+    print("💡 Say 'Hey Siri' to activate")
     print("💡 Say 'exit' or 'quit' to stop")
     print("⚡ Using OpenAI Whisper for speech recognition")
     print("="*60 + "\n")
@@ -601,14 +668,42 @@ def main():
     # Conversation state
     config = {"configurable": {"thread_id": "voice_assistant_session"}}
     
-    # Main loop
+    # Main wake word loop
     while True:
         try:
-            # Listen for user input using Whisper
+            print("\n👂 Listening for 'Hey Siri'...")
+            
+            # Listen for wake word
+            wake_word_detected = listen_for_wake_word()
+            
+            if not wake_word_detected:
+                # Check if we should interrupt ongoing speech
+                if is_speaking:
+                    # Someone might have said something while assistant was speaking
+                    # Check if it was the wake word
+                    continue
+                continue
+            
+            # Wake word detected!
+            print("✅ Activated! Listening for your command...")
+            
+            # Stop any ongoing speech
+            if is_speaking:
+                stop_speaking = True
+                time.sleep(0.3)  # Give time for speech to stop
+            
+            # Listen for user command
             user_input = listen_for_speech_whisper()
             
             if user_input is None:
+                speak_text("I didn't catch that. Please try again.")
                 continue
+            
+            # Check for exit command
+            if any(word in user_input.lower() for word in ["exit", "quit", "bye", "goodbye", "stop"]):
+                speak_text("Goodbye! Have a great day!")
+                print("\n👋 Siri stopped")
+                break
             
             # Process through graph
             initial_state: ConversationState = {
@@ -624,19 +719,17 @@ def main():
             # Run conversation graph
             final_state = app.invoke(initial_state, config)
             
-            # Check if we should exit
-            if not final_state.get("should_continue", True):
-                print("\n👋 Voice Assistant stopped")
-                break
+            # Brief pause before returning to wake word listening
+            time.sleep(0.5)
+            print("💤 Going back to sleep...")
                 
         except KeyboardInterrupt:
-            print("\n\n👋 Voice Assistant stopped by user")
+            print("\n\n👋 Siri stopped by user")
             speak_text("Goodbye! Have a great day!")
             break
         except Exception as e:
             print(f"\n❌ Error: {e}")
             speak_text("Sorry, I encountered an error.")
-            time.sleep(1)
 
 # Entry point
 if __name__ == "__main__":
