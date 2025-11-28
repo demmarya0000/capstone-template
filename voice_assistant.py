@@ -130,13 +130,13 @@ def get_smart_greeting():
     time_str = current_time.strftime("%I:%M %p")
     
     if 5 <= hour < 12:
-        return f"Good morning! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
+        return f"Good morning! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
     elif 12 <= hour < 17:
-        return f"Good afternoon! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
+        return f"Good afternoon! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
     elif 17 <= hour < 21:
-        return f"Good evening! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
+        return f"Good evening! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
     else:
-        return f"Hello! I'm Siri. It's {time_str} on {day}. Say 'Hey Siri' whenever you need me."
+        return f"Hello! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
 
 def speak_text(text: str, priority: bool = False):
     """Enhanced text-to-speech with interrupt capability"""
@@ -145,7 +145,7 @@ def speak_text(text: str, priority: bool = False):
     if not text or text.strip() == "":
         return
     
-    print(f"🔊 Siri: {text}")
+    print(f"🔊 Babitaji: {text}")
     
     is_speaking = True
     stop_speaking = False
@@ -490,7 +490,7 @@ def listen_for_speech_whisper() -> Optional[str]:
         return None
 
 def listen_for_wake_word() -> bool:
-    """Listen for 'Hey Siri' wake word"""
+    """Listen for 'Hey Babitaji' wake word"""
     try:
         with sr.Microphone() as source:
             # Lower energy threshold for wake word detection
@@ -517,7 +517,7 @@ def listen_for_wake_word() -> bool:
                 os.unlink(temp_audio_path)
                 
                 # Check for wake word variations
-                wake_words = ["hey siri", "siri", "hey serie", "a siri", "hey serious"]
+                wake_words = ["hey babitaji", "babitaji", "hey babita ji", "babita", "hey babita"]
                 for wake_word in wake_words:
                     if wake_word in text:
                         print(f"✨ Wake word detected: '{text}'")
@@ -651,9 +651,9 @@ def main():
     global stop_speaking, is_speaking
     
     print("\n" + "="*60)
-    print("🎙️  SIRI - VOICE ASSISTANT (WAKE WORD ENABLED)")
+    print("🎙️  BABITAJI - VOICE ASSISTANT (WAKE WORD ENABLED)")
     print("="*60)
-    print("💡 Say 'Hey Siri' to activate")
+    print("💡 Say 'Hey Babitaji' to activate")
     print("💡 Say 'exit' or 'quit' to stop")
     print("⚡ Using OpenAI Whisper for speech recognition")
     print("="*60 + "\n")
@@ -671,7 +671,7 @@ def main():
     # Main wake word loop
     while True:
         try:
-            print("\n👂 Listening for 'Hey Siri'...")
+            print("\n👂 Listening for 'Hey Babitaji'...")
             
             # Listen for wake word
             wake_word_detected = listen_for_wake_word()
@@ -702,7 +702,7 @@ def main():
             # Check for exit command
             if any(word in user_input.lower() for word in ["exit", "quit", "bye", "goodbye", "stop"]):
                 speak_text("Goodbye! Have a great day!")
-                print("\n👋 Siri stopped")
+                print("\n👋 Babitaji stopped")
                 break
             
             # Process through graph
@@ -724,7 +724,7 @@ def main():
             print("💤 Going back to sleep...")
                 
         except KeyboardInterrupt:
-            print("\n\n👋 Siri stopped by user")
+            print("\n\n👋 Babitaji stopped by user")
             speak_text("Goodbye! Have a great day!")
             break
         except Exception as e:
