@@ -517,7 +517,7 @@ def listen_for_wake_word() -> bool:
                 os.unlink(temp_audio_path)
                 
                 # Check for wake word variations
-                wake_words = ["hey babitaji", "babitaji", "hey babita ji", "babita", "hey babita"]
+                wake_words = ["hey babitaji", "babitaji", "babita", "hey babita"]
                 for wake_word in wake_words:
                     if wake_word in text:
                         print(f"✨ Wake word detected: '{text}'")
