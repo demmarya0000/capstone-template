@@ -148,13 +148,13 @@ def get_smart_greeting():
     time_str = current_time.strftime("%I:%M %p")
     
     if 5 <= hour < 12:
-        return f"Good morning! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
+        return f"Good morning! It's {time_str} on {day}. How can I help you?"
     elif 12 <= hour < 17:
-        return f"Good afternoon! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
+        return f"Good afternoon! It's {time_str} on {day}. How can I help you?"
     elif 17 <= hour < 21:
-        return f"Good evening! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
+        return f"Good evening! It's {time_str} on {day}. How can I help you?"
     else:
-        return f"Hello! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
+        return f"Hello! It's {time_str} on {day}. How can I help you?"
 
 def speak_text(text: str, priority: bool = False):
     """Enhanced text-to-speech with interrupt capability"""
@@ -163,7 +163,7 @@ def speak_text(text: str, priority: bool = False):
     if not text or text.strip() == "":
         return
     
-    print(f"🔊 Babitaji: {text}")
+    print(f"🔊 Assistant: {text}")
     
     is_speaking = True
     stop_speaking = False
@@ -730,7 +730,7 @@ def main():
     global stop_speaking, is_speaking
     
     print("\n" + "="*60)
-    print("🎙️  BABITAJI - VOICE ASSISTANT (CONTINUOUS LISTENING)")
+    print("🎙️  VOICE ASSISTANT (CONTINUOUS LISTENING)")
     print("="*60)
     print("💡 Just speak - I'm always listening!")
     print("💡 Say 'exit' or 'quit' to stop")
@@ -747,6 +747,15 @@ def main():
     # Conversation state
     config = {"configurable": {"thread_id": "voice_assistant_session"}}
     
+    # Persistent booking state across turns
+    persistent_booking_state = {
+        "booking_intent": None,
+        "booking_data": {},
+        "booking_step": "initial",
+        "search_results": [],
+        "selected_option": None
+    }
+    
     # Main continuous listening loop
     while True:
         try:
@@ -761,10 +770,10 @@ def main():
             # Check for exit command
             if any(word in user_input.lower() for word in ["exit", "quit", "bye", "goodbye", "stop"]):
                 speak_text("Goodbye! Have a great day!")
-                print("\n👋 Babitaji stopped")
+                print("\n👋 Assistant stopped")
                 break
             
-            # Process through graph
+            # Process through graph - use persistent booking state
             initial_state: ConversationState = {
                 "messages": [],
                 "user_input": user_input,
@@ -773,19 +782,24 @@ def main():
                 "iteration_count": 0,
                 "response_to_speak": "",
                 "context": conversation_context,
-                # Booking fields
-                "booking_intent": None,
-                "booking_data": {},
-                "booking_step": "initial",
-                "search_results": [],
-                "selected_option": None
+                # Use persistent booking fields
+                **persistent_booking_state
             }
             
             # Run conversation graph
             final_state = app.invoke(initial_state, config)
+            
+            # Update persistent booking state from final state
+            persistent_booking_state = {
+                "booking_intent": final_state.get("booking_intent"),
+                "booking_data": final_state.get("booking_data", {}),
+                "booking_step": final_state.get("booking_step", "initial"),
+                "search_results": final_state.get("search_results", []),
+                "selected_option": final_state.get("selected_option")
+            }
                 
         except KeyboardInterrupt:
-            print("\n\n👋 Babitaji stopped by user")
+            print("\n\n👋 Assistant stopped by user")
             speak_text("Goodbye! Have a great day!")
             break
         except Exception as e:

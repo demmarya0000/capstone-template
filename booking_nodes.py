@@ -12,8 +12,13 @@ from travel_rag import get_travel_rag
 # Services will be initialized lazily
 
 def detect_booking_intent_node(state: Dict) -> Dict:
-    """Detect if user wants to book travel"""
+    """Detect if user wants to book travel or is providing missing info"""
     user_input = state["user_input"].lower()
+    
+    # Check if we're already in a booking flow waiting for info
+    if state.get("booking_step") == "collecting_info" and state.get("booking_intent"):
+        # User is providing missing information, keep the booking intent
+        return state
     
     # Check for booking keywords
     booking_keywords = {
@@ -39,13 +44,25 @@ def extract_entities_node(state: Dict) -> Dict:
     """Extract booking entities from user input"""
     if state.get("booking_intent"):
         booking_service = get_booking_service()
-        # Use LLM to extract entities
-        entities = booking_service.extract_booking_entities(state["user_input"])
-        state["booking_data"] = entities
+        
+        # If we're collecting info, merge with existing data
+        if state.get("booking_step") == "collecting_info":
+            # Try to extract just the missing information from current input
+            new_entities = booking_service.extract_booking_entities(state["user_input"])
+            # Merge with existing booking data
+            existing_data = state.get("booking_data", {})
+            for key, value in new_entities.items():
+                if value:  # Only update if new value exists
+                    existing_data[key] = value
+            state["booking_data"] = existing_data
+        else:
+            # First time extraction
+            entities = booking_service.extract_booking_entities(state["user_input"])
+            state["booking_data"] = entities
         
         # Check if we have all required info
         required = ["origin", "destination", "date"]
-        missing = [field for field in required if not entities.get(field)]
+        missing = [field for field in required if not state["booking_data"].get(field)]
         
         if missing:
             # Ask for missing information
