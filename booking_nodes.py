@@ -181,21 +181,23 @@ def search_travel_node(state: Dict) -> Dict:
             state["response_to_speak"] = f"Opening 5 train booking sites for {origin} to {destination} on {date_str}. Check Google Search, Ixigo Trains, RailYatri, MakeMyTrip, and ConfirmTkt for all available trains with timings, prices, and seat availability."
             
         elif travel_mode == "bus":
-            print(f"\n🚌 Opening 5 bus booking sites with pre-filled details...")
+            print(f"\n🚌 Opening bus booking sites...")
             
-            # 1. Google Search - Shows all operators
-            google_buses = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+RedBus+AbhiBus"
+            # 1. Google Search - Comprehensive search with all details
+            google_buses = f"https://www.google.com/search?q=bus+tickets+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_str}+RedBus+Ixigo+AbhiBus+MakeMyTrip+timings+price"
             
-            # 2. RedBus - India's #1 bus booking (simplified URL that works)
-            redbus = f"https://www.redbus.in/"
+            # 2. RedBus - Try with route in URL
+            origin_slug = origin.lower().replace(" ", "-").replace(",", "")
+            dest_slug = destination.lower().replace(" ", "-").replace(",", "")
+            redbus = f"https://www.redbus.in/bus-tickets/{origin_slug}-to-{dest_slug}"
             
-            # 3. Ixigo Bus - Multi-operator comparison
+            # 3. Ixigo Bus - Homepage (manual search needed)
             ixigo_bus = f"https://www.ixigo.com/bus"
             
-            # 4. AbhiBus - Southern India specialist (simplified)
-            abhibus = f"https://www.abhibus.com/"
+            # 4. AbhiBus - Try with route
+            abhibus = f"https://www.abhibus.com/{origin_slug}-to-{dest_slug}-bus"
             
-            # 5. MakeMyTrip Bus (simplified)
+            # 5. MakeMyTrip Bus - Homepage
             makemytrip_bus = f"https://www.makemytrip.com/bus-tickets/"
             
             # Open all sites in separate thread to avoid blocking
@@ -208,7 +210,7 @@ def search_travel_node(state: Dict) -> Dict:
             thread = threading.Thread(target=open_sites_async, daemon=True)
             thread.start()
             
-            state["response_to_speak"] = f"Opening 5 bus booking sites for {origin} to {destination} on {date_str}. Google Search shows available buses with details. RedBus, Ixigo, AbhiBus, and MakeMyTrip are also opening - you can search there for more options."
+            state["response_to_speak"] = f"Opening bus booking sites for {origin} to {destination} on {date_str}. Google Search shows comprehensive results with timings and prices. RedBus and AbhiBus may have the route pre-filled. For Ixigo and MakeMyTrip, please search manually with your route and date."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
