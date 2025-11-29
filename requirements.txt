@@ -13,3 +13,4 @@ psutil
 requests
 faiss-cpu
 dateparser
+wikipedia

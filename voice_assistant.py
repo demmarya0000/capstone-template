@@ -37,6 +37,7 @@ from booking_nodes import (
     confirm_booking_node
 )
 from language_support import detect_language_change
+from advanced_skills import detect_and_execute_skill
 
 load_dotenv()
 
@@ -587,15 +588,25 @@ def listen_for_wake_word() -> bool:
         return False
 
 def process_input_node(state: ConversationState) -> ConversationState:
-    """Process user input and determine action"""
-    user_input = state["user_input"].lower().strip()
+    """Process user input and check for advanced skills"""
+    user_input = state["user_input"]
     
-    # Check for exit commands
-    if any(word in user_input for word in ["exit", "quit", "bye", "goodbye", "stop"]):
-        state["should_continue"] = False
+    # First, check if this is an advanced skill command
+    skill_response = detect_and_execute_skill(user_input)
+    if skill_response:
+        state["response_to_speak"] = skill_response
         state["skip_processing"] = True
-        state["response_to_speak"] = "Goodbye! Have a great day!"
         return state
+    
+    # Check for special commands
+    special_response = handle_special_commands(user_input)
+    if special_response:
+        state["response_to_speak"] = special_response
+        state["skip_processing"] = True
+        return state
+    
+    # Add user message to conversation
+    state["messages"].append(HumanMessage(content=user_input))
     
     # Try to execute direct command first
     command_result = execute_command(user_input)
