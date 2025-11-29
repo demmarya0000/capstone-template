@@ -87,56 +87,83 @@ def search_travel_node(state: Dict) -> Dict:
         
         # Parse date
         date = booking_data.get("parsed_date") or datetime.now()
-        origin = booking_data.get("origin", "")
-        destination = booking_data.get("destination", "")
+        origin = booking_data.get("origin", "").strip()
+        destination = booking_data.get("destination", "").strip()
         passengers = booking_data.get("passengers", 1)
         
-        # Format date for URLs
+        # City to IATA code mapping (common Indian cities)
+        iata_codes = {
+            "delhi": "DEL", "mumbai": "BOM", "bangalore": "BLR", "bengaluru": "BLR",
+            "chennai": "MAA", "kolkata": "CCU", "hyderabad": "HYD", "pune": "PNQ",
+            "ahmedabad": "AMD", "jaipur": "JAI", "lucknow": "LKO", "goa": "GOI",
+            "kochi": "COK", "thiruvananthapuram": "TRV", "bhubaneswar": "BBI",
+            "indore": "IDR", "chandigarh": "IXC", "coimbatore": "CJB", "nagpur": "NAG",
+            "vadodara": "BDQ", "patna": "PAT", "ranchi": "IXR", "raipur": "RPR",
+            "bhopal": "BHO", "amritsar": "ATQ", "srinagar": "SXR", "guwahati": "GAU",
+            "visakhapatnam": "VTZ", "vijayawada": "VGA", "mangalore": "IXE",
+            "calicut": "CCJ", "trivandrum": "TRV", "madurai": "IXM"
+        }
+        
+        # Get IATA codes
+        origin_code = iata_codes.get(origin.lower(), origin.upper()[:3])
+        dest_code = iata_codes.get(destination.lower(), destination.upper()[:3])
+        
+        # Format dates
         date_str = date.strftime("%d/%m/%Y")
-        date_url = date.strftime("%Y-%m-%d")
+        date_ddmmyyyy = date.strftime("%d%m%Y")
+        date_yyyymmdd = date.strftime("%Y-%m-%d")
+        date_mmddyyyy = date.strftime("%m/%d/%Y")
         
         # Open booking websites based on travel mode
         if travel_mode == "flight":
-            # MakeMyTrip Flights
-            makemytrip_url = f"https://www.makemytrip.com/flight/search?itinerary={origin}-{destination}-{date_url}&tripType=O&paxType=A-{passengers}_C-0_I-0&cabinClass=E"
-            # Goibibo Flights
-            goibibo_url = f"https://www.goibibo.com/flights/{origin}-{destination}-air-tickets/?date={date_url}&adults={passengers}"
-            # Cleartrip Flights
-            cleartrip_url = f"https://www.cleartrip.com/flight-booking/search?from={origin}&to={destination}&depart_date={date_url}&adults={passengers}"
+            # MakeMyTrip Flights - Updated format
+            makemytrip_url = f"https://www.makemytrip.com/flight/search?itinerary={origin_code}-{dest_code}-{date_ddmmyyyy}&tripType=O&paxType=A-{passengers}_C-0_I-0&intl=false&cabinClass=E"
+            
+            # Goibibo Flights - Updated format  
+            goibibo_url = f"https://www.goibibo.com/flights/{origin_code}-{dest_code}-air-tickets/?date={date_yyyymmdd}&adults={passengers}&children=0&infants=0"
+            
+            # EaseMyTrip - Alternative site with better URL support
+            easemytrip_url = f"https://www.easemytrip.com/flights/search/{origin_code}/{dest_code}/{date_ddmmyyyy}/1/{passengers}/0/0/E"
             
             webbrowser.open(makemytrip_url)
             webbrowser.open(goibibo_url)
-            webbrowser.open(cleartrip_url)
+            webbrowser.open(easemytrip_url)
             
-            state["response_to_speak"] = f"Opening flight booking websites for {origin} to {destination} on {date_str}. Check your browser for MakeMyTrip, Goibibo, and Cleartrip."
+            state["response_to_speak"] = f"Opening flight booking websites for {origin} to {destination} on {date_str}. Check your browser - MakeMyTrip, Goibibo, and EaseMyTrip are loading with your search details."
             
         elif travel_mode == "train":
-            # IRCTC (Indian Railways)
-            irctc_url = f"https://www.irctc.co.in/nget/train-search"
-            # MakeMyTrip Trains
-            makemytrip_train_url = f"https://www.makemytrip.com/railways/search?from={origin}&to={destination}&date={date_url}"
-            # Cleartrip Trains
-            cleartrip_train_url = f"https://www.cleartrip.com/trains/{origin}/to/{destination}/on/{date_url}"
+            # 12Go Asia - Works well for Indian trains
+            go12_url = f"https://12go.asia/en/travel/{origin.lower()}/{destination.lower()}"
             
-            webbrowser.open(irctc_url)
+            # MakeMyTrip Trains - Updated format
+            makemytrip_train_url = f"https://www.makemytrip.com/railways/search?from={origin}&to={destination}&date={date_ddmmyyyy}"
+            
+            # ConfirmTkt - Indian train booking
+            confirmtkt_url = f"https://www.confirmtkt.com/train-tickets/{origin.lower()}-to-{destination.lower()}"
+            
+            webbrowser.open(go12_url)
             webbrowser.open(makemytrip_train_url)
-            webbrowser.open(cleartrip_train_url)
+            webbrowser.open(confirmtkt_url)
             
-            state["response_to_speak"] = f"Opening train booking websites for {origin} to {destination} on {date_str}. Check your browser for IRCTC, MakeMyTrip, and Cleartrip."
+            state["response_to_speak"] = f"Opening train booking websites for {origin} to {destination} on {date_str}. Check your browser - 12Go, MakeMyTrip, and ConfirmTkt are loading."
             
         elif travel_mode == "bus":
-            # RedBus
-            redbus_url = f"https://www.redbus.in/bus-tickets/{origin.lower()}-to-{destination.lower()}?fromCityName={origin}&toCityName={destination}&onward={date_url}"
-            # MakeMyTrip Bus
-            makemytrip_bus_url = f"https://www.makemytrip.com/bus-tickets/{origin.lower()}-to-{destination.lower()}.html?from={origin}&to={destination}&travelDate={date_url}"
-            # AbhiBus
-            abhibus_url = f"https://www.abhibus.com/{origin}-to-{destination}-bus"
+            # RedBus - Updated format with proper encoding
+            origin_slug = origin.lower().replace(" ", "-")
+            dest_slug = destination.lower().replace(" ", "-")
+            redbus_url = f"https://www.redbus.in/bus-tickets/{origin_slug}-to-{dest_slug}?fromCityName={urllib.parse.quote(origin)}&toCityName={urllib.parse.quote(destination)}&onward={date_yyyymmdd}"
+            
+            # AbhiBus - Updated format
+            abhibus_url = f"https://www.abhibus.com/bus-ticket-booking/online/{origin_slug}-to-{dest_slug}"
+            
+            # MakeMyTrip Bus - Updated format
+            makemytrip_bus_url = f"https://www.makemytrip.com/bus-tickets/search?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&travelDate={date_ddmmyyyy}"
             
             webbrowser.open(redbus_url)
-            webbrowser.open(makemytrip_bus_url)
             webbrowser.open(abhibus_url)
+            webbrowser.open(makemytrip_bus_url)
             
-            state["response_to_speak"] = f"Opening bus booking websites for {origin} to {destination} on {date_str}. Check your browser for RedBus, MakeMyTrip, and AbhiBus."
+            state["response_to_speak"] = f"Opening bus booking websites for {origin} to {destination} on {date_str}. Check your browser - RedBus, AbhiBus, and MakeMyTrip are loading with your search."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
