@@ -138,10 +138,15 @@ def search_travel_node(state: Dict) -> Dict:
             # 6. Cleartrip - Clean interface
             cleartrip = f"https://www.cleartrip.com/flights/results?from={origin_code}&to={dest_code}&depart_date={date_dd_mm_yyyy}&adults={passengers}&childs=0&infants=0&class=Economy&airline=&carrier=&sd=1734912000000"
             
-            # Open all sites with slight delay to prevent browser overload
-            for url in [google_flights, makemytrip, yatra, ixigo, easemytrip, cleartrip]:
-                webbrowser.open(url)
-                time.sleep(0.3)
+            # Open all sites in separate thread to avoid blocking
+            def open_sites_async():
+                for url in [google_flights, makemytrip, yatra, ixigo, easemytrip, cleartrip]:
+                    webbrowser.open(url)
+                    time.sleep(0.2)
+            
+            import threading
+            thread = threading.Thread(target=open_sites_async, daemon=True)
+            thread.start()
             
             state["response_to_speak"] = f"Opening 6 flight booking sites for {origin} to {destination} on {date_str} for {passengers} passenger(s). All details are pre-filled on Google Flights, MakeMyTrip, Yatra, Ixigo, EaseMyTrip, and Cleartrip. Compare prices and book the best deal!"
             
@@ -163,9 +168,15 @@ def search_travel_node(state: Dict) -> Dict:
             # 5. ConfirmTkt - Availability predictor
             confirmtkt = f"https://www.confirmtkt.com/train-tickets/{origin.lower().replace(' ', '-')}-to-{destination.lower().replace(' ', '-')}"
             
-            for url in [google_trains, ixigo_trains, railyatri, makemytrip_trains, confirmtkt]:
-                webbrowser.open(url)
-                time.sleep(0.3)
+            # Open all sites in separate thread to avoid blocking
+            def open_sites_async():
+                for url in [google_trains, ixigo_trains, railyatri, makemytrip_trains, confirmtkt]:
+                    webbrowser.open(url)
+                    time.sleep(0.2)
+            
+            import threading
+            thread = threading.Thread(target=open_sites_async, daemon=True)
+            thread.start()
             
             state["response_to_speak"] = f"Opening 5 train booking sites for {origin} to {destination} on {date_str}. Check Google Search, Ixigo Trains, RailYatri, MakeMyTrip, and ConfirmTkt for all available trains with timings, prices, and seat availability."
             
@@ -175,25 +186,29 @@ def search_travel_node(state: Dict) -> Dict:
             # 1. Google Search - Shows all operators
             google_buses = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+RedBus+AbhiBus"
             
-            # 2. RedBus - India's #1 bus booking
-            origin_slug = origin.lower().replace(" ", "-")
-            dest_slug = destination.lower().replace(" ", "-")
-            redbus = f"https://www.redbus.in/bus-tickets/{origin_slug}-to-{dest_slug}?fromCityName={urllib.parse.quote(origin)}&toCityName={urllib.parse.quote(destination)}&onward={date_yyyy_mm_dd}"
+            # 2. RedBus - India's #1 bus booking (simplified URL that works)
+            redbus = f"https://www.redbus.in/"
             
             # 3. Ixigo Bus - Multi-operator comparison
-            ixigo_bus = f"https://www.ixigo.com/search/result/bus?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
+            ixigo_bus = f"https://www.ixigo.com/bus"
             
-            # 4. AbhiBus - Southern India specialist
-            abhibus = f"https://www.abhibus.com/bus-ticket-booking/online/{origin_slug}-to-{dest_slug}"
+            # 4. AbhiBus - Southern India specialist (simplified)
+            abhibus = f"https://www.abhibus.com/"
             
-            # 5. MakeMyTrip Bus
-            makemytrip_bus = f"https://www.makemytrip.com/bus-tickets/search?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&travelDate={date_ddmmyyyy}"
+            # 5. MakeMyTrip Bus (simplified)
+            makemytrip_bus = f"https://www.makemytrip.com/bus-tickets/"
             
-            for url in [google_buses, redbus, ixigo_bus, abhibus, makemytrip_bus]:
-                webbrowser.open(url)
-                time.sleep(0.3)
+            # Open all sites in separate thread to avoid blocking
+            def open_sites_async():
+                for url in [google_buses, redbus, ixigo_bus, abhibus, makemytrip_bus]:
+                    webbrowser.open(url)
+                    time.sleep(0.2)
             
-            state["response_to_speak"] = f"Opening 5 bus booking sites for {origin} to {destination} on {date_str}. Check Google Search, RedBus, Ixigo, AbhiBus, and MakeMyTrip for all available buses with timings and prices across multiple operators."
+            import threading
+            thread = threading.Thread(target=open_sites_async, daemon=True)
+            thread.start()
+            
+            state["response_to_speak"] = f"Opening 5 bus booking sites for {origin} to {destination} on {date_str}. Google Search shows available buses with details. RedBus, Ixigo, AbhiBus, and MakeMyTrip are also opening - you can search there for more options."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
