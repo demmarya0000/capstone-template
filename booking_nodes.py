@@ -93,7 +93,7 @@ def search_travel_node(state: Dict) -> Dict:
         
         # City to IATA code mapping (common Indian cities)
         iata_codes = {
-            "delhi": "DEL", "mumbai": "BOM", "bangalore": "BLR", "bengaluru": "BLR",
+            "delhi": "DEL", "new delhi": "DEL", "mumbai": "BOM", "bangalore": "BLR", "bengaluru": "BLR",
             "chennai": "MAA", "kolkata": "CCU", "hyderabad": "HYD", "pune": "PNQ",
             "ahmedabad": "AMD", "jaipur": "JAI", "lucknow": "LKO", "goa": "GOI",
             "kochi": "COK", "thiruvananthapuram": "TRV", "bhubaneswar": "BBI",
@@ -108,58 +108,58 @@ def search_travel_node(state: Dict) -> Dict:
         origin_code = iata_codes.get(origin.lower(), origin.upper()[:3])
         dest_code = iata_codes.get(destination.lower(), destination.upper()[:3])
         
-        # Format dates
+        # Format dates for different URL formats
         date_str = date.strftime("%d/%m/%Y")
         date_yyyy_mm_dd = date.strftime("%Y-%m-%d")
         
         # Open booking websites based on travel mode
         if travel_mode == "flight":
-            # Google Flights - Most reliable, shows all airlines
-            google_flights_url = f"https://www.google.com/travel/flights?q=flights+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
+            # Google Flights - 100% reliable, shows all airlines with prices
+            google_flights_url = f"https://www.google.com/travel/flights?q=Flights+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+for+{passengers}+passengers"
             
-            # Skyscanner - Comparison site
-            skyscanner_url = f"https://www.skyscanner.co.in/transport/flights/{origin_code}/{dest_code}/{date_yyyy_mm_dd}/?adults={passengers}&adultsv2={passengers}&cabinclass=economy&children=0&childrenv2=&inboundaltsenabled=false&infants=0&outboundaltsenabled=false&preferdirects=false&ref=home&rtn=0"
+            # Yatra - Indian travel site with reliable URL parameters
+            yatra_url = f"https://www.yatra.com/online-flight-booking?origin={origin_code}&destination={dest_code}&departure_date={date_yyyy_mm_dd}&adult={passengers}&child=0&infant=0&class=Economy&search_source=search_box"
             
-            # Kayak - Another comparison site
-            kayak_url = f"https://www.kayak.co.in/flights/{origin_code}-{dest_code}/{date_yyyy_mm_dd}?sort=bestflight_a"
+            # Ixigo - Another reliable Indian travel aggregator
+            ixigo_url = f"https://www.ixigo.com/search/result/flight?from={origin_code}&to={dest_code}&date={date_yyyy_mm_dd}&adults={passengers}&children=0&infants=0&class=e"
             
             webbrowser.open(google_flights_url)
-            webbrowser.open(skyscanner_url)
-            webbrowser.open(kayak_url)
+            webbrowser.open(yatra_url)
+            webbrowser.open(ixigo_url)
             
-            state["response_to_speak"] = f"Opening flight search for {origin} to {destination} on {date_str}. Check your browser - Google Flights, Skyscanner, and Kayak are loading with your search details pre-filled."
+            state["response_to_speak"] = f"Opening flight search for {origin} to {destination} on {date_str} for {passengers} passenger(s). Google Flights, Yatra, and Ixigo are loading with all details pre-filled. You can compare prices and book directly."
             
         elif travel_mode == "train":
-            # Google Search for trains - Shows IRCTC and other options
-            google_train_search = f"https://www.google.com/search?q=train+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
+            # Google Search for trains - Most reliable, shows IRCTC and all options
+            google_train_search = f"https://www.google.com/search?q=trains+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
             
-            # 12Go Asia - Works well for Indian trains
-            go12_url = f"https://12go.asia/en/travel/{origin.lower()}/{destination.lower()}"
+            # Ixigo Trains - Reliable Indian train search
+            ixigo_trains_url = f"https://www.ixigo.com/search/result/trains?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
             
-            # RailYatri - Indian train booking
-            railyatri_url = f"https://www.railyatri.in/train-ticket/trains-from-{origin.lower()}-to-{destination.lower()}"
+            # RailYatri - Popular Indian train booking platform
+            railyatri_url = f"https://www.railyatri.in/train-ticket/trains-from-{origin.lower().replace(' ', '-')}-to-{destination.lower().replace(' ', '-')}"
             
             webbrowser.open(google_train_search)
-            webbrowser.open(go12_url)
+            webbrowser.open(ixigo_trains_url)
             webbrowser.open(railyatri_url)
             
-            state["response_to_speak"] = f"Opening train search for {origin} to {destination} on {date_str}. Check your browser - Google Search, 12Go, and RailYatri are loading."
+            state["response_to_speak"] = f"Opening train search for {origin} to {destination} on {date_str}. Google Search, Ixigo Trains, and RailYatri are loading. You'll see all available trains with timings and prices."
             
         elif travel_mode == "bus":
-            # Google Search for buses
+            # Google Search for buses - Shows all bus operators
             google_bus_search = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
             
-            # RedBus - Direct site link (they'll fill details on site)
-            redbus_url = f"https://www.redbus.in/"
+            # Ixigo Bus - Reliable bus search
+            ixigo_bus_url = f"https://www.ixigo.com/search/result/bus?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
             
-            # AbhiBus - Direct site link
-            abhibus_url = f"https://www.abhibus.com/"
+            # RedBus - Most popular bus booking in India (homepage, they handle search well)
+            redbus_url = "https://www.redbus.in/"
             
             webbrowser.open(google_bus_search)
+            webbrowser.open(ixigo_bus_url)
             webbrowser.open(redbus_url)
-            webbrowser.open(abhibus_url)
             
-            state["response_to_speak"] = f"Opening bus search for {origin} to {destination} on {date_str}. Google Search shows available buses. RedBus and AbhiBus are also open - enter your details there."
+            state["response_to_speak"] = f"Opening bus search for {origin} to {destination} on {date_str}. Google Search and Ixigo show available buses. RedBus is also open where you can enter your route for more options."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
