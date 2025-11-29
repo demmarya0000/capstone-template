@@ -1,0 +1,218 @@
+{
+    "routes": [
+        {
+            "origin": "Delhi",
+            "destination": "Mumbai",
+            "modes": [
+                "flight",
+                "train"
+            ],
+            "distance_km": 1400,
+            "popular_times": [
+                "morning",
+                "evening"
+            ],
+            "tips": "Book flights 2-3 weeks in advance for best prices. Rajdhani Express is the fastest train option.",
+            "avg_flight_time": "2h 15m",
+            "avg_train_time": "16h",
+            "airports": [
+                "DEL (Indira Gandhi)",
+                "BOM (Chhatrapati Shivaji)"
+            ],
+            "stations": [
+                "NDLS (New Delhi)",
+                "CSTM (Mumbai CST)"
+            ]
+        },
+        {
+            "origin": "Bangalore",
+            "destination": "Chennai",
+            "modes": [
+                "flight",
+                "train",
+                "bus"
+            ],
+            "distance_km": 350,
+            "popular_times": [
+                "morning",
+                "afternoon"
+            ],
+            "tips": "Buses are economical and frequent. Shatabdi Express is comfortable for train travel.",
+            "avg_flight_time": "1h",
+            "avg_train_time": "5h",
+            "avg_bus_time": "7h",
+            "airports": [
+                "BLR (Kempegowda)",
+                "MAA (Chennai)"
+            ],
+            "stations": [
+                "SBC (Bangalore City)",
+                "MAS (Chennai Central)"
+            ]
+        },
+        {
+            "origin": "Delhi",
+            "destination": "Goa",
+            "modes": [
+                "flight",
+                "train"
+            ],
+            "distance_km": 1900,
+            "popular_times": [
+                "evening",
+                "night"
+            ],
+            "tips": "Direct flights are available. Train journey is scenic but long. Book early during peak season (Dec-Feb).",
+            "avg_flight_time": "2h 30m",
+            "avg_train_time": "28h",
+            "airports": [
+                "DEL (Indira Gandhi)",
+                "GOI (Dabolim)"
+            ],
+            "stations": [
+                "NDLS (New Delhi)",
+                "MAO (Madgaon)"
+            ]
+        },
+        {
+            "origin": "Pune",
+            "destination": "Mumbai",
+            "modes": [
+                "train",
+                "bus"
+            ],
+            "distance_km": 150,
+            "popular_times": [
+                "morning",
+                "evening"
+            ],
+            "tips": "Frequent trains and buses available. Deccan Queen is a popular train. AC buses are comfortable.",
+            "avg_train_time": "3h 30m",
+            "avg_bus_time": "4h",
+            "stations": [
+                "PUNE (Pune Junction)",
+                "CSTM (Mumbai CST)"
+            ]
+        },
+        {
+            "origin": "Kolkata",
+            "destination": "Delhi",
+            "modes": [
+                "flight",
+                "train"
+            ],
+            "distance_km": 1500,
+            "popular_times": [
+                "morning",
+                "night"
+            ],
+            "tips": "Rajdhani Express is the premium train option. Flights are faster and competitively priced.",
+            "avg_flight_time": "2h 20m",
+            "avg_train_time": "17h",
+            "airports": [
+                "CCU (Netaji Subhas)",
+                "DEL (Indira Gandhi)"
+            ],
+            "stations": [
+                "HWH (Howrah)",
+                "NDLS (New Delhi)"
+            ]
+        },
+        {
+            "origin": "Hyderabad",
+            "destination": "Bangalore",
+            "modes": [
+                "flight",
+                "train",
+                "bus"
+            ],
+            "distance_km": 575,
+            "popular_times": [
+                "morning",
+                "evening"
+            ],
+            "tips": "Buses are frequent and economical. Trains take longer but are comfortable.",
+            "avg_flight_time": "1h 15m",
+            "avg_train_time": "11h",
+            "avg_bus_time": "10h",
+            "airports": [
+                "HYD (Rajiv Gandhi)",
+                "BLR (Kempegowda)"
+            ],
+            "stations": [
+                "HYB (Hyderabad Deccan)",
+                "SBC (Bangalore City)"
+            ]
+        }
+    ],
+    "travel_tips": [
+        "Book train tickets 120 days in advance for best availability",
+        "Flights are usually cheaper on Tuesdays and Wednesdays",
+        "Tatkal tickets open 1 day before journey for trains",
+        "Check for festival season surcharges on buses",
+        "Early morning flights are usually more punctual",
+        "AC buses are recommended for long-distance travel",
+        "Premium trains like Rajdhani and Shatabdi offer better amenities",
+        "Book return tickets together for better deals",
+        "Check cancellation policies before booking",
+        "Keep government ID for train and flight travel"
+    ],
+    "popular_destinations": [
+        {
+            "city": "Goa",
+            "best_time": "November to February",
+            "attractions": [
+                "Beaches",
+                "Churches",
+                "Nightlife"
+            ],
+            "travel_from": [
+                "Delhi",
+                "Mumbai",
+                "Bangalore"
+            ]
+        },
+        {
+            "city": "Mumbai",
+            "best_time": "October to March",
+            "attractions": [
+                "Gateway of India",
+                "Marine Drive",
+                "Bollywood"
+            ],
+            "travel_from": [
+                "Delhi",
+                "Bangalore",
+                "Pune"
+            ]
+        },
+        {
+            "city": "Delhi",
+            "best_time": "October to March",
+            "attractions": [
+                "Red Fort",
+                "India Gate",
+                "Qutub Minar"
+            ],
+            "travel_from": [
+                "Mumbai",
+                "Bangalore",
+                "Kolkata"
+            ]
+        },
+        {
+            "city": "Bangalore",
+            "best_time": "Year-round",
+            "attractions": [
+                "Lalbagh",
+                "Cubbon Park",
+                "Tech Hub"
+            ],
+            "travel_from": [
+                "Chennai",
+                "Hyderabad",
+                "Mumbai"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+speech_recognition
+pyttsx3
+openai
+langchain
+langchain-openai
+langchain-community
+langgraph
+python-dotenv
+gtts
+pygame
+pytz
+psutil
+requests
+faiss-cpu
+dateparser

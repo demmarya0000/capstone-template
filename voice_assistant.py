@@ -25,6 +25,18 @@ from typing import Dict, List
 import tempfile
 from openai import OpenAI
 
+# Travel booking imports
+from travel_booking import get_booking_service
+from travel_rag import get_travel_rag
+from booking_nodes import (
+    detect_booking_intent_node,
+    extract_entities_node,
+    search_travel_node,
+    present_options_node,
+    handle_selection_node,
+    confirm_booking_node
+)
+
 load_dotenv()
 
 # Initialize OpenAI client for Whisper
@@ -120,6 +132,12 @@ class ConversationState(TypedDict):
     iteration_count: int
     response_to_speak: str
     context: dict
+    # Booking fields
+    booking_intent: Optional[str]  # "flight", "train", "bus", None
+    booking_data: dict  # Extracted entities (origin, destination, date, etc.)
+    booking_step: str  # "initial", "searching", "presenting", "confirming", "booked"
+    search_results: list  # Available travel options
+    selected_option: Optional[dict]  # User's selected option
 
 def get_smart_greeting():
     """Simple time-based greeting"""
@@ -621,18 +639,79 @@ def should_continue(state: ConversationState) -> str:
     return "continue" if state.get("should_continue", True) else "end"
 
 def create_conversation_graph():
-    """Create the conversation workflow graph"""
+    """Create the conversation workflow graph with booking support"""
     workflow = StateGraph(ConversationState)
     
-    # Add nodes
+    # Add existing nodes
     workflow.add_node("process_input", process_input_node)
     workflow.add_node("llm_response", llm_node)
     workflow.add_node("speak_response", response_node)
     
-    # Define edges
+    # Add booking nodes
+    workflow.add_node("detect_booking", detect_booking_intent_node)
+    workflow.add_node("extract_entities", extract_entities_node)
+    workflow.add_node("search_travel", search_travel_node)
+    workflow.add_node("present_options", present_options_node)
+    workflow.add_node("handle_selection", handle_selection_node)
+    workflow.add_node("confirm_booking", confirm_booking_node)
+    
+    # Define conditional routing function
+    def route_after_process(state):
+        if state.get("skip_processing"):
+            return "speak_response"
+        return "detect_booking"
+    
+    def route_after_detect(state):
+        if state.get("booking_intent"):
+            return "extract_entities"
+        return "llm_response"
+    
+    def route_after_extract(state):
+        if state.get("booking_step") == "searching":
+            return "search_travel"
+        return "speak_response"
+    
+    def route_after_search(state):
+        return "present_options"
+    
+    def route_after_present(state):
+        return "speak_response"
+    
+    # Set entry point
     workflow.set_entry_point("process_input")
-    workflow.add_edge("process_input", "llm_response")
+    
+    # Define edges with conditional routing
+    workflow.add_conditional_edges(
+        "process_input",
+        route_after_process,
+        {
+            "speak_response": "speak_response",
+            "detect_booking": "detect_booking"
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "detect_booking",
+        route_after_detect,
+        {
+            "extract_entities": "extract_entities",
+            "llm_response": "llm_response"
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "extract_entities",
+        route_after_extract,
+        {
+            "search_travel": "search_travel",
+            "speak_response": "speak_response"
+        }
+    )
+    
+    workflow.add_edge("search_travel", "present_options")
+    workflow.add_edge("present_options", "speak_response")
     workflow.add_edge("llm_response", "speak_response")
+    
     workflow.add_conditional_edges(
         "speak_response",
         should_continue,
@@ -713,7 +792,13 @@ def main():
                 "skip_processing": False,
                 "iteration_count": 0,
                 "response_to_speak": "",
-                "context": conversation_context
+                "context": conversation_context,
+                # Booking fields
+                "booking_intent": None,
+                "booking_data": {},
+                "booking_step": "initial",
+                "search_results": [],
+                "selected_option": None
             }
             
             # Run conversation graph
