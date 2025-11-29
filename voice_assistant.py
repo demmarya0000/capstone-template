@@ -36,6 +36,7 @@ from booking_nodes import (
     handle_selection_node,
     confirm_booking_node
 )
+from language_support import detect_language_change
 
 load_dotenv()
 
@@ -117,11 +118,32 @@ reminder_lock = threading.Lock()
 is_speaking = False
 stop_speaking = False
 
+# Language configuration for Indian regional languages
+SUPPORTED_LANGUAGES = {
+    "english": {"code": "en", "whisper": "en", "gtts": "en", "name": "English"},
+    "hindi": {"code": "hi", "whisper": "hi", "gtts": "hi", "name": "हिंदी"},
+    "tamil": {"code": "ta", "whisper": "ta", "gtts": "ta", "name": "தமிழ்"},
+    "telugu": {"code": "te", "whisper": "te", "gtts": "te", "name": "తెలుగు"},
+    "bengali": {"code": "bn", "whisper": "bn", "gtts": "bn", "name": "বাংলা"},
+    "marathi": {"code": "mr", "whisper": "mr", "gtts": "mr", "name": "मराठी"},
+    "gujarati": {"code": "gu", "whisper": "gu", "gtts": "gu", "name": "ગુજરાતી"},
+    "kannada": {"code": "kn", "whisper": "kn", "gtts": "kn", "name": "ಕನ್ನಡ"},
+    "malayalam": {"code": "ml", "whisper": "ml", "gtts": "ml", "name": "മലയാളം"},
+    "punjabi": {"code": "pa", "whisper": "pa", "gtts": "pa", "name": "ਪੰਜਾਬੀ"},
+    "odia": {"code": "or", "whisper": "or", "gtts": "or", "name": "ଓଡ଼ିଆ"},
+    "assamese": {"code": "as", "whisper": "as", "gtts": "as", "name": "অসমীয়া"},
+    "urdu": {"code": "ur", "whisper": "ur", "gtts": "ur", "name": "اردو"}
+}
+
+# Current language (default: English)
+current_language = "english"
+
 # Conversation context
 conversation_context = {
     "last_search": None,
     "last_location": None,
-    "preferences": {}
+    "preferences": {},
+    "language": "english"
 }
 
 class ConversationState(TypedDict):
@@ -132,6 +154,8 @@ class ConversationState(TypedDict):
     iteration_count: int
     response_to_speak: str
     context: dict
+    # Language field
+    language: str  # Current conversation language
     # Booking fields
     booking_intent: Optional[str]  # "flight", "train", "bus", None
     booking_data: dict  # Extracted entities (origin, destination, date, etc.)
@@ -156,14 +180,18 @@ def get_smart_greeting():
     else:
         return f"Hello! It's {time_str} on {day}. How can I help you?"
 
-def speak_text(text: str, priority: bool = False):
-    """Enhanced text-to-speech with interrupt capability"""
-    global tts_engine, tts_lock, USE_GTTS, is_speaking, stop_speaking
+def speak_text(text: str, priority: bool = False, language: str = None):
+    """Enhanced text-to-speech with interrupt capability and multi-language support"""
+    global tts_engine, tts_lock, USE_GTTS, is_speaking, stop_speaking, current_language
     
     if not text or text.strip() == "":
         return
     
-    print(f"🔊 Assistant: {text}")
+    # Use provided language or current language
+    lang = language or current_language
+    lang_code = SUPPORTED_LANGUAGES.get(lang, SUPPORTED_LANGUAGES["english"])["gtts"]
+    
+    print(f"🔊 Assistant ({SUPPORTED_LANGUAGES[lang]['name']}): {text}")
     
     is_speaking = True
     stop_speaking = False
@@ -177,7 +205,7 @@ def speak_text(text: str, priority: bool = False):
             
             if USE_GTTS:
                 try:
-                    tts = gTTS(text=text, lang="en", slow=False)
+                    tts = gTTS(text=text, lang=lang_code, slow=False)
                     fp = BytesIO()
                     tts.write_to_fp(fp)
                     fp.seek(0)
@@ -444,37 +472,41 @@ def execute_command(text: str) -> Optional[str]:
             minutes = int(minutes_match.group(1))
             message = re.sub(r'remind(?:er)?\s+(?:me\s+)?(?:in\s+)?\d+\s*(?:minute|min)s?\s+(?:to\s+)?', '', text_lower).strip()
             return set_reminder(message, minutes)
-        else:
-            return "Please specify time. Example: Remind me in 10 minutes to call John"
+        return "Please specify time. Example: Remind me in 10 minutes to call John"
     
     return None
 
-def listen_for_speech_whisper() -> Optional[str]:
-    """🚀 FIXED: Use OpenAI Whisper for speech recognition (FAST & RELIABLE)"""
-    try:
-        with sr.Microphone() as source:
-            print("\n🎤 Listening... (Speak now)")
-            
-            # Adjust for ambient noise
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            
-            # Listen
+def listen_for_speech_whisper():
+    """Listen for speech using Whisper API with multi-language support"""
+    global current_language
+    
+    recognizer = sr.Recognizer()
+    recognizer.energy_threshold = 4000
+    recognizer.dynamic_energy_threshold = True
+    recognizer.pause_threshold = 1.0
+    
+    with sr.Microphone() as source:
+        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+        
+        try:
             audio = recognizer.listen(source, timeout=10, phrase_time_limit=15)
             
-            print("🔄 Processing with Whisper (fast)...")
+            # Get language code for Whisper
+            lang_code = SUPPORTED_LANGUAGES.get(current_language, SUPPORTED_LANGUAGES["english"])["whisper"]
             
-            # Save audio to temporary WAV file
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
-                temp_audio.write(audio.get_wav_data())
-                temp_audio_path = temp_audio.name
+            # Save audio to temporary file
+            temp_audio_path = tempfile.mktemp(suffix=".wav")
+            with open(temp_audio_path, "wb") as f:
+                f.write(audio.get_wav_data())
             
             try:
-                # Use OpenAI Whisper API for transcription
+                print("🔄 Processing with Whisper (fast)...")
+                # Use Whisper API with language parameter
                 with open(temp_audio_path, "rb") as audio_file:
                     transcript = openai_client.audio.transcriptions.create(
                         model="whisper-1",
                         file=audio_file,
-                        language="en"
+                        language=lang_code  # Use current language
                     )
                 
                 text = transcript.text.strip()
@@ -499,13 +531,12 @@ def listen_for_speech_whisper() -> Optional[str]:
                 speak_text("Sorry, I couldn't process that.")
                 return None
                 
-    except sr.WaitTimeoutError:
-        print("⏱️  No speech detected")
-        return None
-    except Exception as e:
-        print(f"❌ Microphone error: {e}")
-        speak_text("Microphone error occurred.")
-        return None
+        except sr.WaitTimeoutError:
+            print("⏱️  No speech detected")
+            return None
+        except Exception as e:
+            print(f"❌ Error in speech recognition: {e}")
+            return None
 
 def listen_for_wake_word() -> bool:
     """Listen for 'Hey Babitaji' wake word"""
