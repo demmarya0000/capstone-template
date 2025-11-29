@@ -598,22 +598,15 @@ def process_input_node(state: ConversationState) -> ConversationState:
         state["skip_processing"] = True
         return state
     
-    # Check for special commands
-    special_response = handle_special_commands(user_input)
-    if special_response:
-        state["response_to_speak"] = special_response
+    # Check for exit commands
+    if any(word in user_input.lower() for word in ["exit", "quit", "bye", "goodbye", "stop"]):
+        state["should_continue"] = False
         state["skip_processing"] = True
+        state["response_to_speak"] = "Goodbye! Have a great day!"
         return state
     
     # Add user message to conversation
     state["messages"].append(HumanMessage(content=user_input))
-    
-    # Try to execute direct command first
-    command_result = execute_command(user_input)
-    if command_result:
-        state["response_to_speak"] = command_result
-        state["skip_processing"] = True
-        return state
     
     # Continue to LLM for conversational responses
     state["skip_processing"] = False
