@@ -148,13 +148,13 @@ def get_smart_greeting():
     time_str = current_time.strftime("%I:%M %p")
     
     if 5 <= hour < 12:
-        return f"Good morning! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
+        return f"Good morning! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
     elif 12 <= hour < 17:
-        return f"Good afternoon! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
+        return f"Good afternoon! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
     elif 17 <= hour < 21:
-        return f"Good evening! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
+        return f"Good evening! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
     else:
-        return f"Hello! I'm Babitaji. It's {time_str} on {day}. Say 'Hey Babitaji' whenever you need me."
+        return f"Hello! I'm Babitaji. It's {time_str} on {day}. How can I help you?"
 
 def speak_text(text: str, priority: bool = False):
     """Enhanced text-to-speech with interrupt capability"""
@@ -726,13 +726,13 @@ def create_conversation_graph():
     return workflow.compile(checkpointer=memory)
 
 def main():
-    """Main voice assistant loop with wake word detection"""
+    """Main voice assistant loop with continuous listening"""
     global stop_speaking, is_speaking
     
     print("\n" + "="*60)
-    print("🎙️  BABITAJI - VOICE ASSISTANT (WAKE WORD ENABLED)")
+    print("🎙️  BABITAJI - VOICE ASSISTANT (CONTINUOUS LISTENING)")
     print("="*60)
-    print("💡 Say 'Hey Babitaji' to activate")
+    print("💡 Just speak - I'm always listening!")
     print("💡 Say 'exit' or 'quit' to stop")
     print("⚡ Using OpenAI Whisper for speech recognition")
     print("="*60 + "\n")
@@ -747,35 +747,15 @@ def main():
     # Conversation state
     config = {"configurable": {"thread_id": "voice_assistant_session"}}
     
-    # Main wake word loop
+    # Main continuous listening loop
     while True:
         try:
-            print("\n👂 Listening for 'Hey Babitaji'...")
+            print("\n🎤 Listening... (Speak now)")
             
-            # Listen for wake word
-            wake_word_detected = listen_for_wake_word()
-            
-            if not wake_word_detected:
-                # Check if we should interrupt ongoing speech
-                if is_speaking:
-                    # Someone might have said something while assistant was speaking
-                    # Check if it was the wake word
-                    continue
-                continue
-            
-            # Wake word detected!
-            print("✅ Activated! Listening for your command...")
-            
-            # Stop any ongoing speech
-            if is_speaking:
-                stop_speaking = True
-                time.sleep(0.3)  # Give time for speech to stop
-            
-            # Listen for user command
+            # Listen for user command directly
             user_input = listen_for_speech_whisper()
             
             if user_input is None:
-                speak_text("I didn't catch that. Please try again.")
                 continue
             
             # Check for exit command
@@ -803,10 +783,6 @@ def main():
             
             # Run conversation graph
             final_state = app.invoke(initial_state, config)
-            
-            # Brief pause before returning to wake word listening
-            time.sleep(0.5)
-            print("💤 Going back to sleep...")
                 
         except KeyboardInterrupt:
             print("\n\n👋 Babitaji stopped by user")
@@ -815,6 +791,7 @@ def main():
         except Exception as e:
             print(f"\n❌ Error: {e}")
             speak_text("Sorry, I encountered an error.")
+            time.sleep(1)
 
 # Entry point
 if __name__ == "__main__":
