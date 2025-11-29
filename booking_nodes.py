@@ -110,60 +110,56 @@ def search_travel_node(state: Dict) -> Dict:
         
         # Format dates
         date_str = date.strftime("%d/%m/%Y")
-        date_ddmmyyyy = date.strftime("%d%m%Y")
-        date_yyyymmdd = date.strftime("%Y-%m-%d")
-        date_mmddyyyy = date.strftime("%m/%d/%Y")
+        date_yyyy_mm_dd = date.strftime("%Y-%m-%d")
         
         # Open booking websites based on travel mode
         if travel_mode == "flight":
-            # MakeMyTrip Flights - Updated format
-            makemytrip_url = f"https://www.makemytrip.com/flight/search?itinerary={origin_code}-{dest_code}-{date_ddmmyyyy}&tripType=O&paxType=A-{passengers}_C-0_I-0&intl=false&cabinClass=E"
+            # Google Flights - Most reliable, shows all airlines
+            google_flights_url = f"https://www.google.com/travel/flights?q=flights+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
             
-            # Goibibo Flights - Updated format  
-            goibibo_url = f"https://www.goibibo.com/flights/{origin_code}-{dest_code}-air-tickets/?date={date_yyyymmdd}&adults={passengers}&children=0&infants=0"
+            # Skyscanner - Comparison site
+            skyscanner_url = f"https://www.skyscanner.co.in/transport/flights/{origin_code}/{dest_code}/{date_yyyy_mm_dd}/?adults={passengers}&adultsv2={passengers}&cabinclass=economy&children=0&childrenv2=&inboundaltsenabled=false&infants=0&outboundaltsenabled=false&preferdirects=false&ref=home&rtn=0"
             
-            # EaseMyTrip - Alternative site with better URL support
-            easemytrip_url = f"https://www.easemytrip.com/flights/search/{origin_code}/{dest_code}/{date_ddmmyyyy}/1/{passengers}/0/0/E"
+            # Kayak - Another comparison site
+            kayak_url = f"https://www.kayak.co.in/flights/{origin_code}-{dest_code}/{date_yyyy_mm_dd}?sort=bestflight_a"
             
-            webbrowser.open(makemytrip_url)
-            webbrowser.open(goibibo_url)
-            webbrowser.open(easemytrip_url)
+            webbrowser.open(google_flights_url)
+            webbrowser.open(skyscanner_url)
+            webbrowser.open(kayak_url)
             
-            state["response_to_speak"] = f"Opening flight booking websites for {origin} to {destination} on {date_str}. Check your browser - MakeMyTrip, Goibibo, and EaseMyTrip are loading with your search details."
+            state["response_to_speak"] = f"Opening flight search for {origin} to {destination} on {date_str}. Check your browser - Google Flights, Skyscanner, and Kayak are loading with your search details pre-filled."
             
         elif travel_mode == "train":
+            # Google Search for trains - Shows IRCTC and other options
+            google_train_search = f"https://www.google.com/search?q=train+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
+            
             # 12Go Asia - Works well for Indian trains
             go12_url = f"https://12go.asia/en/travel/{origin.lower()}/{destination.lower()}"
             
-            # MakeMyTrip Trains - Updated format
-            makemytrip_train_url = f"https://www.makemytrip.com/railways/search?from={origin}&to={destination}&date={date_ddmmyyyy}"
+            # RailYatri - Indian train booking
+            railyatri_url = f"https://www.railyatri.in/train-ticket/trains-from-{origin.lower()}-to-{destination.lower()}"
             
-            # ConfirmTkt - Indian train booking
-            confirmtkt_url = f"https://www.confirmtkt.com/train-tickets/{origin.lower()}-to-{destination.lower()}"
-            
+            webbrowser.open(google_train_search)
             webbrowser.open(go12_url)
-            webbrowser.open(makemytrip_train_url)
-            webbrowser.open(confirmtkt_url)
+            webbrowser.open(railyatri_url)
             
-            state["response_to_speak"] = f"Opening train booking websites for {origin} to {destination} on {date_str}. Check your browser - 12Go, MakeMyTrip, and ConfirmTkt are loading."
+            state["response_to_speak"] = f"Opening train search for {origin} to {destination} on {date_str}. Check your browser - Google Search, 12Go, and RailYatri are loading."
             
         elif travel_mode == "bus":
-            # RedBus - Updated format with proper encoding
-            origin_slug = origin.lower().replace(" ", "-")
-            dest_slug = destination.lower().replace(" ", "-")
-            redbus_url = f"https://www.redbus.in/bus-tickets/{origin_slug}-to-{dest_slug}?fromCityName={urllib.parse.quote(origin)}&toCityName={urllib.parse.quote(destination)}&onward={date_yyyymmdd}"
+            # Google Search for buses
+            google_bus_search = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
             
-            # AbhiBus - Updated format
-            abhibus_url = f"https://www.abhibus.com/bus-ticket-booking/online/{origin_slug}-to-{dest_slug}"
+            # RedBus - Direct site link (they'll fill details on site)
+            redbus_url = f"https://www.redbus.in/"
             
-            # MakeMyTrip Bus - Updated format
-            makemytrip_bus_url = f"https://www.makemytrip.com/bus-tickets/search?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&travelDate={date_ddmmyyyy}"
+            # AbhiBus - Direct site link
+            abhibus_url = f"https://www.abhibus.com/"
             
+            webbrowser.open(google_bus_search)
             webbrowser.open(redbus_url)
             webbrowser.open(abhibus_url)
-            webbrowser.open(makemytrip_bus_url)
             
-            state["response_to_speak"] = f"Opening bus booking websites for {origin} to {destination} on {date_str}. Check your browser - RedBus, AbhiBus, and MakeMyTrip are loading with your search."
+            state["response_to_speak"] = f"Opening bus search for {origin} to {destination} on {date_str}. Google Search shows available buses. RedBus and AbhiBus are also open - enter your details there."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
