@@ -658,9 +658,13 @@ Context:
     return state
 
 def response_node(state: ConversationState) -> ConversationState:
-    """Speak the response"""
+    """Speak the response in the appropriate language"""
+    global current_language
+    
     if state.get("response_to_speak"):
-        speak_text(state["response_to_speak"])
+        # Update current language from state
+        current_language = state.get("language", "english")
+        speak_text(state["response_to_speak"], language=current_language)
     
     state["iteration_count"] = state.get("iteration_count", 0) + 1
     return state
@@ -670,13 +674,16 @@ def should_continue(state: ConversationState) -> str:
     return "continue" if state.get("should_continue", True) else "end"
 
 def create_conversation_graph():
-    """Create the conversation workflow graph with booking support"""
+    """Create the conversation workflow graph with booking and language support"""
     workflow = StateGraph(ConversationState)
     
     # Add existing nodes
     workflow.add_node("process_input", process_input_node)
     workflow.add_node("llm_response", llm_node)
     workflow.add_node("speak_response", response_node)
+    
+    # Add language detection node
+    workflow.add_node("detect_language", detect_language_change)
     
     # Add booking nodes
     workflow.add_node("detect_booking", detect_booking_intent_node)
@@ -686,8 +693,14 @@ def create_conversation_graph():
     workflow.add_node("handle_selection", handle_selection_node)
     workflow.add_node("confirm_booking", confirm_booking_node)
     
-    # Define conditional routing function
+    # Define conditional routing functions
     def route_after_process(state):
+        if state.get("skip_processing"):
+            return "speak_response"
+        return "detect_language"
+    
+    def route_after_language(state):
+        # If language was changed, skip to speak_response
         if state.get("skip_processing"):
             return "speak_response"
         return "detect_booking"
@@ -715,6 +728,15 @@ def create_conversation_graph():
     workflow.add_conditional_edges(
         "process_input",
         route_after_process,
+        {
+            "speak_response": "speak_response",
+            "detect_language": "detect_language"
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "detect_language",
+        route_after_language,
         {
             "speak_response": "speak_response",
             "detect_booking": "detect_booking"
@@ -804,7 +826,7 @@ def main():
                 print("\n👋 Assistant stopped")
                 break
             
-            # Process through graph - use persistent booking state
+            # Process through graph - use persistent booking state and language
             initial_state: ConversationState = {
                 "messages": [],
                 "user_input": user_input,
@@ -813,6 +835,7 @@ def main():
                 "iteration_count": 0,
                 "response_to_speak": "",
                 "context": conversation_context,
+                "language": current_language,  # Current language
                 # Use persistent booking fields
                 **persistent_booking_state
             }
