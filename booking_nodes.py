@@ -59,9 +59,12 @@ def extract_entities_node(state: Dict) -> Dict:
     return state
 
 def search_travel_node(state: Dict) -> Dict:
-    """Search for travel options"""
+    """Open booking websites with search parameters"""
     if state["booking_step"] == "searching":
-        booking_service = get_booking_service()
+        import webbrowser
+        import urllib.parse
+        from datetime import datetime
+        
         booking_data = state["booking_data"]
         travel_mode = state["booking_intent"]
         
@@ -71,40 +74,62 @@ def search_travel_node(state: Dict) -> Dict:
         destination = booking_data.get("destination", "")
         passengers = booking_data.get("passengers", 1)
         
-        # Search based on travel mode
-        if travel_mode == "flight":
-            results = booking_service.search_flights(origin, destination, date, passengers)
-        elif travel_mode == "train":
-            results = booking_service.search_trains(origin, destination, date, passengers)
-        elif travel_mode == "bus":
-            results = booking_service.search_buses(origin, destination, date, passengers)
-        else:
-            results = []
+        # Format date for URLs
+        date_str = date.strftime("%d/%m/%Y")
+        date_url = date.strftime("%Y-%m-%d")
         
-        state["search_results"] = results
-        state["booking_step"] = "presenting"
+        # Open booking websites based on travel mode
+        if travel_mode == "flight":
+            # MakeMyTrip Flights
+            makemytrip_url = f"https://www.makemytrip.com/flight/search?itinerary={origin}-{destination}-{date_url}&tripType=O&paxType=A-{passengers}_C-0_I-0&cabinClass=E"
+            # Goibibo Flights
+            goibibo_url = f"https://www.goibibo.com/flights/{origin}-{destination}-air-tickets/?date={date_url}&adults={passengers}"
+            # Cleartrip Flights
+            cleartrip_url = f"https://www.cleartrip.com/flight-booking/search?from={origin}&to={destination}&depart_date={date_url}&adults={passengers}"
+            
+            webbrowser.open(makemytrip_url)
+            webbrowser.open(goibibo_url)
+            webbrowser.open(cleartrip_url)
+            
+            state["response_to_speak"] = f"Opening flight booking websites for {origin} to {destination} on {date_str}. Check your browser for MakeMyTrip, Goibibo, and Cleartrip."
+            
+        elif travel_mode == "train":
+            # IRCTC (Indian Railways)
+            irctc_url = f"https://www.irctc.co.in/nget/train-search"
+            # MakeMyTrip Trains
+            makemytrip_train_url = f"https://www.makemytrip.com/railways/search?from={origin}&to={destination}&date={date_url}"
+            # Cleartrip Trains
+            cleartrip_train_url = f"https://www.cleartrip.com/trains/{origin}/to/{destination}/on/{date_url}"
+            
+            webbrowser.open(irctc_url)
+            webbrowser.open(makemytrip_train_url)
+            webbrowser.open(cleartrip_train_url)
+            
+            state["response_to_speak"] = f"Opening train booking websites for {origin} to {destination} on {date_str}. Check your browser for IRCTC, MakeMyTrip, and Cleartrip."
+            
+        elif travel_mode == "bus":
+            # RedBus
+            redbus_url = f"https://www.redbus.in/bus-tickets/{origin.lower()}-to-{destination.lower()}?fromCityName={origin}&toCityName={destination}&onward={date_url}"
+            # MakeMyTrip Bus
+            makemytrip_bus_url = f"https://www.makemytrip.com/bus-tickets/{origin.lower()}-to-{destination.lower()}.html?from={origin}&to={destination}&travelDate={date_url}"
+            # AbhiBus
+            abhibus_url = f"https://www.abhibus.com/{origin}-to-{destination}-bus"
+            
+            webbrowser.open(redbus_url)
+            webbrowser.open(makemytrip_bus_url)
+            webbrowser.open(abhibus_url)
+            
+            state["response_to_speak"] = f"Opening bus booking websites for {origin} to {destination} on {date_str}. Check your browser for RedBus, MakeMyTrip, and AbhiBus."
+        
+        state["booking_step"] = "completed"
+        state["booking_intent"] = None
+        state["skip_processing"] = True
     
     return state
 
 def present_options_node(state: Dict) -> Dict:
-    """Present travel options to user"""
-    if state["booking_step"] == "presenting":
-        booking_service = get_booking_service()
-        results = state.get("search_results", [])
-        travel_mode = state["booking_intent"]
-        
-        if results:
-            # Format options for voice
-            formatted = booking_service.format_options(results, travel_mode, top_n=3)
-            state["response_to_speak"] = formatted + "\n\nWhich option would you like to book? Say 'first', 'second', or 'third'."
-            state["booking_step"] = "awaiting_selection"
-        else:
-            state["response_to_speak"] = f"Sorry, no {travel_mode}s found for this route."
-            state["booking_step"] = "initial"
-            state["booking_intent"] = None
-        
-        state["skip_processing"] = True
-    
+    """This node is no longer needed as we open websites directly"""
+    # Skip this node as websites are already opened
     return state
 
 def handle_selection_node(state: Dict) -> Dict:
