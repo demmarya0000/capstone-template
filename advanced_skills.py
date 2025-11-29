@@ -247,6 +247,93 @@ def get_fun_fact() -> str:
     return random.choice(facts)
 
 # ============================================================================
+# MUSIC & VIDEO PLAYBACK SKILL
+# ============================================================================
+
+import webbrowser
+import urllib.parse
+
+def play_music(query: str, platform: str = "youtube") -> str:
+    """Play music/video on YouTube, Spotify, or other platforms"""
+    try:
+        query_encoded = urllib.parse.quote(query)
+        
+        if platform == "youtube" or platform == "yt":
+            # YouTube - Use direct watch URL with search query (auto-plays first result)
+            # Format: youtube.com/results?search_query=QUERY then auto-click first result
+            # Better approach: Use a direct link that searches and plays
+            youtube_search_url = f"https://www.youtube.com/results?search_query={query_encoded}"
+            
+            # Alternative: Try to get video ID and play directly
+            try:
+                import requests
+                # Search YouTube and get first video ID
+                search_url = f"https://www.youtube.com/results?search_query={query_encoded}"
+                response = requests.get(search_url, timeout=5)
+                
+                # Extract first video ID from search results
+                import re
+                video_id_match = re.search(r'"videoId":"([^"]+)"', response.text)
+                
+                if video_id_match:
+                    video_id = video_id_match.group(1)
+                    # Direct play URL
+                    youtube_url = f"https://www.youtube.com/watch?v={video_id}&autoplay=1"
+                    webbrowser.open(youtube_url)
+                    return f"Playing '{query}' on YouTube"
+                else:
+                    # Fallback to search
+                    webbrowser.open(youtube_search_url)
+                    return f"Searching '{query}' on YouTube - click the first result to play"
+            except:
+                # If API fails, use search URL
+                webbrowser.open(youtube_search_url)
+                return f"Opening '{query}' on YouTube"
+        
+        elif platform == "spotify":
+            # Spotify - Direct search
+            spotify_url = f"https://open.spotify.com/search/{query_encoded}"
+            webbrowser.open(spotify_url)
+            return f"Searching '{query}' on Spotify - click to play"
+        
+        elif platform == "music" or platform == "apple":
+            # Apple Music
+            music_url = f"https://music.apple.com/search?term={query_encoded}"
+            webbrowser.open(music_url)
+            return f"Searching '{query}' on Apple Music"
+        
+        elif platform == "soundcloud":
+            # SoundCloud
+            soundcloud_url = f"https://soundcloud.com/search?q={query_encoded}"
+            webbrowser.open(soundcloud_url)
+            return f"Searching '{query}' on SoundCloud"
+        
+        elif platform == "gaana":
+            # Gaana (Indian music platform)
+            gaana_url = f"https://gaana.com/search/{query_encoded}"
+            webbrowser.open(gaana_url)
+            return f"Searching '{query}' on Gaana"
+        
+        elif platform == "jiosaavn" or platform == "saavn":
+            # JioSaavn (Indian music platform)
+            saavn_url = f"https://www.jiosaavn.com/search/{query_encoded}"
+            webbrowser.open(saavn_url)
+            return f"Searching '{query}' on JioSaavn"
+        
+        else:
+            # Default to YouTube with auto-play attempt
+            youtube_search_url = f"https://www.youtube.com/results?search_query={query_encoded}"
+            webbrowser.open(youtube_search_url)
+            return f"Playing '{query}' on YouTube"
+            
+    except Exception as e:
+        return f"Sorry, I couldn't play '{query}'"
+
+def play_video(query: str) -> str:
+    """Play video on YouTube"""
+    return play_music(query, "youtube")
+
+# ============================================================================
 # SYSTEM CONTROL SKILL
 # ============================================================================
 
@@ -283,6 +370,32 @@ def open_application(app_name: str) -> str:
 def detect_and_execute_skill(user_input: str) -> Optional[str]:
     """Detect which skill to use and execute it"""
     text = user_input.lower()
+    
+    # Music/Video Playback - HIGH PRIORITY
+    if any(word in text for word in ["play", "listen", "song", "music", "video"]):
+        # Detect platform
+        platform = "youtube"  # Default
+        if "spotify" in text:
+            platform = "spotify"
+        elif "apple music" in text or "itunes" in text:
+            platform = "music"
+        elif "soundcloud" in text:
+            platform = "soundcloud"
+        elif "gaana" in text:
+            platform = "gaana"
+        elif "jiosaavn" in text or "saavn" in text:
+            platform = "jiosaavn"
+        
+        # Extract song/video name
+        query = text
+        # Remove platform names
+        query = re.sub(r'(on |from )?(youtube|spotify|apple music|soundcloud|gaana|jiosaavn|saavn)', '', query)
+        # Remove command words
+        query = re.sub(r'^(play|listen to|listen|show me|find|search for|search)\s+', '', query)
+        query = query.strip()
+        
+        if query:
+            return play_music(query, platform)
     
     # Weather
     if any(word in text for word in ["weather", "temperature", "forecast"]):
