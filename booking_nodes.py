@@ -76,11 +76,12 @@ def extract_entities_node(state: Dict) -> Dict:
     return state
 
 def search_travel_node(state: Dict) -> Dict:
-    """Open booking websites with search parameters"""
+    """Open maximum booking websites with all search parameters pre-filled"""
     if state["booking_step"] == "searching":
         import webbrowser
         import urllib.parse
         from datetime import datetime
+        import time
         
         booking_data = state["booking_data"]
         travel_mode = state["booking_intent"]
@@ -91,75 +92,108 @@ def search_travel_node(state: Dict) -> Dict:
         destination = booking_data.get("destination", "").strip()
         passengers = booking_data.get("passengers", 1)
         
-        # City to IATA code mapping (common Indian cities)
+        # Comprehensive IATA code mapping for Indian cities
         iata_codes = {
             "delhi": "DEL", "new delhi": "DEL", "mumbai": "BOM", "bangalore": "BLR", "bengaluru": "BLR",
             "chennai": "MAA", "kolkata": "CCU", "hyderabad": "HYD", "pune": "PNQ",
-            "ahmedabad": "AMD", "jaipur": "JAI", "lucknow": "LKO", "goa": "GOI",
-            "kochi": "COK", "thiruvananthapuram": "TRV", "bhubaneswar": "BBI",
+            "ahmedabad": "AMD", "jaipur": "JAI", "lucknow": "LKO", "goa": "GOI", "panaji": "GOI",
+            "kochi": "COK", "cochin": "COK", "thiruvananthapuram": "TRV", "bhubaneswar": "BBI",
             "indore": "IDR", "chandigarh": "IXC", "coimbatore": "CJB", "nagpur": "NAG",
             "vadodara": "BDQ", "patna": "PAT", "ranchi": "IXR", "raipur": "RPR",
             "bhopal": "BHO", "amritsar": "ATQ", "srinagar": "SXR", "guwahati": "GAU",
-            "visakhapatnam": "VTZ", "vijayawada": "VGA", "mangalore": "IXE",
-            "calicut": "CCJ", "trivandrum": "TRV", "madurai": "IXM"
+            "visakhapatnam": "VTZ", "vizag": "VTZ", "vijayawada": "VGA", "mangalore": "IXE",
+            "calicut": "CCJ", "kozhikode": "CCJ", "trivandrum": "TRV", "madurai": "IXM",
+            "varanasi": "VNS", "agra": "AGR", "udaipur": "UDR", "jodhpur": "JDH"
         }
         
         # Get IATA codes
         origin_code = iata_codes.get(origin.lower(), origin.upper()[:3])
         dest_code = iata_codes.get(destination.lower(), destination.upper()[:3])
         
-        # Format dates for different URL formats
+        # Format dates in multiple formats for different sites
         date_str = date.strftime("%d/%m/%Y")
         date_yyyy_mm_dd = date.strftime("%Y-%m-%d")
+        date_ddmmyyyy = date.strftime("%d%m%Y")
+        date_dd_mm_yyyy = date.strftime("%d-%m-%Y")
         
         # Open booking websites based on travel mode
         if travel_mode == "flight":
-            # Google Flights - 100% reliable, shows all airlines with prices
-            google_flights_url = f"https://www.google.com/travel/flights?q=Flights+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+for+{passengers}+passengers"
+            print(f"\n🛫 Opening 6 flight booking sites with pre-filled details...")
             
-            # Yatra - Indian travel site with reliable URL parameters
-            yatra_url = f"https://www.yatra.com/online-flight-booking?origin={origin_code}&destination={dest_code}&departure_date={date_yyyy_mm_dd}&adult={passengers}&child=0&infant=0&class=Economy&search_source=search_box"
+            # 1. Google Flights - Most comprehensive
+            google_flights = f"https://www.google.com/travel/flights?q=Flights+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+for+{passengers}+passengers"
             
-            # Ixigo - Another reliable Indian travel aggregator
-            ixigo_url = f"https://www.ixigo.com/search/result/flight?from={origin_code}&to={dest_code}&date={date_yyyy_mm_dd}&adults={passengers}&children=0&infants=0&class=e"
+            # 2. MakeMyTrip - India's largest
+            makemytrip = f"https://www.makemytrip.com/flight/search?itinerary={origin_code}-{dest_code}-{date_ddmmyyyy}&tripType=O&paxType=A-{passengers}_C-0_I-0&intl=false&cabinClass=E&rKey=DCALC"
             
-            webbrowser.open(google_flights_url)
-            webbrowser.open(yatra_url)
-            webbrowser.open(ixigo_url)
+            # 3. Yatra - Reliable Indian site
+            yatra = f"https://www.yatra.com/online-flight-booking?origin={origin_code}&destination={dest_code}&departure_date={date_yyyy_mm_dd}&adult={passengers}&child=0&infant=0&class=Economy&search_source=search_box"
             
-            state["response_to_speak"] = f"Opening flight search for {origin} to {destination} on {date_str} for {passengers} passenger(s). Google Flights, Yatra, and Ixigo are loading with all details pre-filled. You can compare prices and book directly."
+            # 4. Ixigo - Price comparison
+            ixigo = f"https://www.ixigo.com/search/result/flight?from={origin_code}&to={dest_code}&date={date_yyyy_mm_dd}&adults={passengers}&children=0&infants=0&class=e"
+            
+            # 5. EaseMyTrip - Budget flights
+            easemytrip = f"https://www.easemytrip.com/flights/search/{origin_code}/{dest_code}/{date_ddmmyyyy}/1/{passengers}/0/0/E"
+            
+            # 6. Cleartrip - Clean interface
+            cleartrip = f"https://www.cleartrip.com/flights/results?from={origin_code}&to={dest_code}&depart_date={date_dd_mm_yyyy}&adults={passengers}&childs=0&infants=0&class=Economy&airline=&carrier=&sd=1734912000000"
+            
+            # Open all sites with slight delay to prevent browser overload
+            for url in [google_flights, makemytrip, yatra, ixigo, easemytrip, cleartrip]:
+                webbrowser.open(url)
+                time.sleep(0.3)
+            
+            state["response_to_speak"] = f"Opening 6 flight booking sites for {origin} to {destination} on {date_str} for {passengers} passenger(s). All details are pre-filled on Google Flights, MakeMyTrip, Yatra, Ixigo, EaseMyTrip, and Cleartrip. Compare prices and book the best deal!"
             
         elif travel_mode == "train":
-            # Google Search for trains - Most reliable, shows IRCTC and all options
-            google_train_search = f"https://www.google.com/search?q=trains+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
+            print(f"\n🚂 Opening 5 train booking sites with pre-filled details...")
             
-            # Ixigo Trains - Reliable Indian train search
-            ixigo_trains_url = f"https://www.ixigo.com/search/result/trains?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
+            # 1. Google Search - Shows all options
+            google_trains = f"https://www.google.com/search?q=trains+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+IRCTC"
             
-            # RailYatri - Popular Indian train booking platform
-            railyatri_url = f"https://www.railyatri.in/train-ticket/trains-from-{origin.lower().replace(' ', '-')}-to-{destination.lower().replace(' ', '-')}"
+            # 2. Ixigo Trains - Comprehensive
+            ixigo_trains = f"https://www.ixigo.com/search/result/trains?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
             
-            webbrowser.open(google_train_search)
-            webbrowser.open(ixigo_trains_url)
-            webbrowser.open(railyatri_url)
+            # 3. RailYatri - Popular platform
+            railyatri = f"https://www.railyatri.in/train-ticket/trains-from-{origin.lower().replace(' ', '-')}-to-{destination.lower().replace(' ', '-')}"
             
-            state["response_to_speak"] = f"Opening train search for {origin} to {destination} on {date_str}. Google Search, Ixigo Trains, and RailYatri are loading. You'll see all available trains with timings and prices."
+            # 4. MakeMyTrip Trains
+            makemytrip_trains = f"https://www.makemytrip.com/railways/search?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_ddmmyyyy}"
+            
+            # 5. ConfirmTkt - Availability predictor
+            confirmtkt = f"https://www.confirmtkt.com/train-tickets/{origin.lower().replace(' ', '-')}-to-{destination.lower().replace(' ', '-')}"
+            
+            for url in [google_trains, ixigo_trains, railyatri, makemytrip_trains, confirmtkt]:
+                webbrowser.open(url)
+                time.sleep(0.3)
+            
+            state["response_to_speak"] = f"Opening 5 train booking sites for {origin} to {destination} on {date_str}. Check Google Search, Ixigo Trains, RailYatri, MakeMyTrip, and ConfirmTkt for all available trains with timings, prices, and seat availability."
             
         elif travel_mode == "bus":
-            # Google Search for buses - Shows all bus operators
-            google_bus_search = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}"
+            print(f"\n🚌 Opening 5 bus booking sites with pre-filled details...")
             
-            # Ixigo Bus - Reliable bus search
-            ixigo_bus_url = f"https://www.ixigo.com/search/result/bus?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
+            # 1. Google Search - Shows all operators
+            google_buses = f"https://www.google.com/search?q=bus+from+{urllib.parse.quote(origin)}+to+{urllib.parse.quote(destination)}+on+{date_yyyy_mm_dd}+RedBus+AbhiBus"
             
-            # RedBus - Most popular bus booking in India (homepage, they handle search well)
-            redbus_url = "https://www.redbus.in/"
+            # 2. RedBus - India's #1 bus booking
+            origin_slug = origin.lower().replace(" ", "-")
+            dest_slug = destination.lower().replace(" ", "-")
+            redbus = f"https://www.redbus.in/bus-tickets/{origin_slug}-to-{dest_slug}?fromCityName={urllib.parse.quote(origin)}&toCityName={urllib.parse.quote(destination)}&onward={date_yyyy_mm_dd}"
             
-            webbrowser.open(google_bus_search)
-            webbrowser.open(ixigo_bus_url)
-            webbrowser.open(redbus_url)
+            # 3. Ixigo Bus - Multi-operator comparison
+            ixigo_bus = f"https://www.ixigo.com/search/result/bus?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&date={date_yyyy_mm_dd}"
             
-            state["response_to_speak"] = f"Opening bus search for {origin} to {destination} on {date_str}. Google Search and Ixigo show available buses. RedBus is also open where you can enter your route for more options."
+            # 4. AbhiBus - Southern India specialist
+            abhibus = f"https://www.abhibus.com/bus-ticket-booking/online/{origin_slug}-to-{dest_slug}"
+            
+            # 5. MakeMyTrip Bus
+            makemytrip_bus = f"https://www.makemytrip.com/bus-tickets/search?from={urllib.parse.quote(origin)}&to={urllib.parse.quote(destination)}&travelDate={date_ddmmyyyy}"
+            
+            for url in [google_buses, redbus, ixigo_bus, abhibus, makemytrip_bus]:
+                webbrowser.open(url)
+                time.sleep(0.3)
+            
+            state["response_to_speak"] = f"Opening 5 bus booking sites for {origin} to {destination} on {date_str}. Check Google Search, RedBus, Ixigo, AbhiBus, and MakeMyTrip for all available buses with timings and prices across multiple operators."
         
         state["booking_step"] = "completed"
         state["booking_intent"] = None
