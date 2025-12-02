@@ -106,7 +106,7 @@ something that I have never listned before and made a project out of it and whic
 
 ###VIDEO FOR THE VOICE ASSISTANT:-
 - https://youtu.be/E1FgAc9QPZA?si=Rft9CklGDN0LHuni -> This is the Video YouTube link (Unlisted)
-- https://drive.google.com/file/d/1yOAsJOVKlLCRyBPq5x1kIMqW8Z6he7mZ/view?usp=drive_link -> This is the video Google Drive Link
+- (https://drive.google.com/file/d/1yOAsJOVKlLCRyBPq5x1kIMqW8Z6he7mZ/view?usp=sharing) -> This is the video Google Drive Link
 
 ## 🏗️ Architecture
 
