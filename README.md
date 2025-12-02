@@ -40,14 +40,14 @@ python3 voice_assistant.py
 
 ## 📋 To-Do List
 
-### Phase 1: Core Voice Assistant ✅
+### Phase 1: Core Voice Assistant ✅(DONE)
 - [x] Implement basic voice recognition using Whisper API
 - [x] Add text-to-speech with gTTS
 - [x] Create conversation flow with LangGraph
 - [x] Implement continuous listening mode
 - [x] Add context memory and conversation history
 
-### Phase 2: Multi-Language Support ✅
+### Phase 2: Multi-Language Support ✅(DONE)
 - [x] Add support for 12 Indian regional languages
 - [x] Implement language switching via voice commands
 - [x] Add multi-language speech recognition
@@ -55,7 +55,7 @@ python3 voice_assistant.py
 - [x] Create language-specific confirmations in native scripts
 - [x] Integrate language detection into workflow
 
-### Phase 3: Travel Booking Integration ✅
+### Phase 3: Travel Booking Integration ✅(DONE)
 - [x] Design booking workflow with LangGraph
 - [x] Implement entity extraction for travel queries
 - [x] Add nternational Air Transport Association (IATA) code mapping for 40+ Indian cities
@@ -66,13 +66,13 @@ python3 voice_assistant.py
 - [x] Add multi-turn conversation support for missing information
 - [x] Implement booking context persistence across turns
 
-### Phase 4: RAG System Implementation ✅
+### Phase 4: RAG System Implementation ✅(DONE)
 - [x] Set up FAISS vector store for travel information(SO THAT IT GET GET ME TO THE NEAREST NEIGHBOURS TO THE RECENT QUERY)
 - [x] Implement document chunking and embedding
 - [x] Integrate RAG with booking workflow
 - [x] Add travel information retrieval
 
-### Phase 5: Advanced Features ✅
+### Phase 5: Advanced Features ✅(DONE)
 - [x] Remove wake word for seamless interaction
 - [x] Add smart time-based greetings
 - [x] Implement booking state management
@@ -81,7 +81,7 @@ python3 voice_assistant.py
 - [x] Add browser automation for booking sites
 - [x] Implement delay management for multiple site openings
 
-### Phase 6: Optimization & Polish ✅
+### Phase 6: Optimization & Polish ✅(DONE)
 - [x] Fix booking URL formats for all sites
 - [x] Add proper error handling and recovery
 - [x] Implement speech interruption capability
@@ -89,9 +89,9 @@ python3 voice_assistant.py
 
 ### CONCLUSION:- 
 - _I am pretty happy with how it came out, would be more working on the frontend for sure and I loved bascically this course because it was
-something that I have never listned before and made a project out of it and which came out to be working is pretty big achievement for me and if I had been given more time I would have worked on implementing these things to my voice-assistant._
+something that I have never listned before and made a project out of it and which came out to be working is pretty big achievement for me and if I had been given more time I would have worked on implementing these things (PHASE 7) to my voice-assistant._
   
-### Phase 7: Future Enhancements 🔄
+### Phase 7: Future Enhancements 🔄(TO BE DONE IN FUTURE)
 - [ ] Add hotel booking integration
 - [ ] Create user preference profiles
 - [ ] Add voice authentication
