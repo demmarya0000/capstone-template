@@ -58,7 +58,7 @@ python3 voice_assistant.py
 ### Phase 3: Travel Booking Integration ✅(DONE)
 - [x] Design booking workflow with LangGraph
 - [x] Implement entity extraction for travel queries
-- [x] Add nternational Air Transport Association (IATA) code mapping for 40+ Indian cities
+- [x] Add International Air Transport Association (IATA) code mapping for 40+ Indian cities
 - [x] Create booking nodes for flights, trains, and buses
 - [x] Integrate 6 flight booking sites with pre-filled parameters
 - [x] Integrate 5 train booking sites with pre-filled parameters
