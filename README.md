@@ -88,9 +88,9 @@ python3 voice_assistant.py
 - [x] Optimize Whisper API usage
 
 ### CONCLUSION:- 
-- I am pretty happy with how it came out, would be more working on the frontend for sure and I loved bascically this course because it was -- something that I have never listned before and made a project out of it and which came out to be working is pretty big achievement for me
-- and if I had been given more time I would have worked on implementing these things to my voice-assistant.
-- 
+- _I am pretty happy with how it came out, would be more working on the frontend for sure and I loved bascically this course because it was
+something that I have never listned before and made a project out of it and which came out to be working is pretty big achievement for me and if I had been given more time I would have worked on implementing these things to my voice-assistant._
+  
 ### Phase 7: Future Enhancements 🔄
 - [ ] Add hotel booking integration
 - [ ] Create user preference profiles
