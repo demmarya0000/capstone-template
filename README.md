@@ -67,7 +67,7 @@ python3 voice_assistant.py
 - [x] Implement booking context persistence across turns
 
 ### Phase 4: RAG System Implementation ✅(DONE)
-- [x] Set up FAISS vector store for travel information(SO THAT IT GET GET ME TO THE NEAREST NEIGHBOURS TO THE RECENT QUERY)
+- [x] Set up FAISS(Facebook AI similarity Search) vector store for travel information(So that it can get to me the nearest neighbours of the query vector for a very large dataset.)
 - [x] Integrate RAG with booking workflow
 - [x] Add travel information retrieval
 
