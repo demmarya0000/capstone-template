@@ -68,7 +68,6 @@ python3 voice_assistant.py
 
 ### Phase 4: RAG System Implementation ✅(DONE)
 - [x] Set up FAISS vector store for travel information(SO THAT IT GET GET ME TO THE NEAREST NEIGHBOURS TO THE RECENT QUERY)
-- [x] Implement document chunking and embedding
 - [x] Integrate RAG with booking workflow
 - [x] Add travel information retrieval
 
