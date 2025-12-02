@@ -192,6 +192,11 @@ Default language is English. Switch languages using voice commands:
 - "Switch to Tamil"
 - "हिंदी में बोलो"
 
+**PICTORIAL REPRESEMTATION:-**
+![PHOTO-2025-11-27-18-05-12](https://github.com/user-attachments/assets/438b241c-9602-438c-9b38-5c3b8be5e336)
+
+
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
