@@ -1,4 +1,4 @@
-# 🎙️ Babitaji - Advanced Multi-Language Voice Assistant
+# 🎙️ Advanced Multi-Language Voice Assistant
 
 An intelligent voice assistant with travel booking capabilities, supporting 12+ Indian regional languages with real-time speech recognition and natural language processing.
 
